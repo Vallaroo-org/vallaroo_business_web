@@ -33,7 +33,11 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
 
     useEffect(() => {
         const fetchViewers = async () => {
+            console.log('Fetching viewers for story:', storyId);
             try {
+                const { data: { user: currentUser } } = await supabase.auth.getUser();
+                console.log('Current Auth User:', currentUser?.id);
+
                 const { data, error } = await supabase
                     .from('story_views')
                     .select(`
@@ -48,7 +52,12 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                     .eq('story_id', storyId)
                     .order('viewed_at', { ascending: false });
 
-                if (error) throw error;
+                if (error) {
+                    console.error('Supabase Error fetching viewers:', error);
+                    throw error;
+                }
+
+                console.log('Fetched Viewers Data:', data);
                 // @ts-ignore
                 setViewers(data || []);
             } catch (error) {
@@ -72,7 +81,8 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                         table: 'story_views',
                         filter: `story_id=eq.${storyId}`
                     },
-                    () => {
+                    (payload) => {
+                        console.log('Realtime update received:', payload);
                         fetchViewers();
                     }
                 )

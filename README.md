@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vallaroo Business Web
+
+Web portal for Vallaroo shop owners to manage their business, inventory, and orders. Built with Next.js (App Router) and Supabase.
+
+## Overview
+Vallaroo Business Web allows merchants to control their online presence effectively. From this dashboard, business owners can manage their product catalog, view incoming orders, and update their shop profile details.
+
+## Features
+- 🔐 **Authentication**: Secure Google OAuth & Email login/signup via Supabase.
+- 📊 **Dashboard**: Real-time overview of shop performance and metrics.
+- 📦 **Inventory Management**: Create, update, and delete products easily.
+- 📝 **Order Management**: View and process customer orders.
+- ⚙️ **Settings**: Configure shop details, business hours, and contact info.
+- 📱 **Responsive Design**: Optimized for both desktop and mobile management.
+
+## Tech Stack
+- **Framework**: [Next.js 14](https://nextjs.org/) (App Router)
+- **Database & Auth**: [Supabase](https://supabase.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+- **Deployment**: [Vercel](https://vercel.com/)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+ installed
+- A Supabase project set up
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Installation
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Vallaroo-org/vallaroo_business_web.git
+   cd vallaroo_business_web
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. **Configure Environment Variables:**
+   Create a `.env.local` file in the root directory and add your Supabase credentials:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-## Learn More
+4. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+5. **Open the app:**
+   Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
+This project is optimized for deployment on [Vercel](https://vercel.com/).
+Ensure environment variables are correctly set in the Vercel project settings.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributing
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request

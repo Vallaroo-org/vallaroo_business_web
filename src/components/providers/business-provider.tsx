@@ -46,15 +46,30 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
                 .single();
 
             // 2. Fetch businesses (User is staff/owner)
+            // 2. Fetch businesses (User is owner OR staff)
+            // First, get business IDs where user is staff
             const { data: staffMembers } = await supabase
                 .from('staff_members')
-                .select('business:businesses(*)')
+                .select('business_id')
                 .eq('user_id', user.id);
 
-            const fetchedBusinesses = staffMembers
-                ?.map((item: { business: Business | Business[] | null }) => item.business)
-                .flat()
-                .filter((b: Business | null) => b !== null) as Business[] || [];
+            const staffBusinessIds = staffMembers?.map((sm: any) => sm.business_id) || [];
+
+            let query = supabase.from('businesses').select('*');
+
+            if (staffBusinessIds.length > 0) {
+                query = query.or(`owner_id.eq.${user.id},id.in.(${staffBusinessIds.join(',')})`);
+            } else {
+                query = query.eq('owner_id', user.id);
+            }
+
+            const { data: businessesData, error: businessError } = await query;
+
+            if (businessError) {
+                console.error("Error fetching businesses:", businessError);
+            }
+
+            const fetchedBusinesses = businessesData as Business[] || [];
 
             setBusinesses(fetchedBusinesses);
 

@@ -60,6 +60,27 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
 
         if (storyId) {
             fetchViewers();
+
+            // Realtime Subscription
+            const channel = supabase
+                .channel('story_viewers')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'story_views',
+                        filter: `story_id=eq.${storyId}`
+                    },
+                    () => {
+                        fetchViewers();
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [storyId]);
 

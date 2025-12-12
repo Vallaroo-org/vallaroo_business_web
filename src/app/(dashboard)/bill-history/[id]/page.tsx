@@ -69,8 +69,8 @@ export default function BillDetailsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Order Items */}
-                <Card className="md:col-span-2 bg-card border-border">
+                {/* Left Column: Items */}
+                <Card className="md:col-span-2 bg-card border-border h-fit">
                     <CardHeader>
                         <CardTitle>Items</CardTitle>
                     </CardHeader>
@@ -125,59 +125,65 @@ export default function BillDetailsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="md:col-span-1 bg-card border-border h-fit">
-                    <CardHeader>
-                        <CardTitle>Payment Status</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Status</span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                                    { order.payment_status || 'unpaid' }
-                    </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Amount Paid</span>
-                        <span className="font-medium">₹{order.paid_amount || 0}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Balance</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                            ₹{(order.total - (order.paid_amount || 0)).toFixed(2)}
-                        </span>
-                    </div>
-                </CardContent>
-            </Card >
+                {/* Right Column: Status & Customer */}
+                <div className="space-y-6">
+                    {/* Payment Status Card */}
+                    <Card className="bg-card border-border">
+                        <CardHeader>
+                            <CardTitle>Payment Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-sm text-muted-foreground">Status</span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                    ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                        order.payment_status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                                    {order.payment_status || 'unpaid'}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Amount Paid</span>
+                                <span className="font-medium">₹{order.paid_amount || 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground">Balance</span>
+                                <span className="font-medium text-red-600 dark:text-red-400">
+                                    ₹{(order.total - (order.paid_amount || 0)).toFixed(2)}
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-            {/* Customer Details Side Panel */}
-            < Card className="h-fit bg-card border-border" >
-                <CardHeader>
-                    <CardTitle className="text-lg">Customer</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {order.customer_name ? (
-                        <>
-                            <div className="font-medium text-foreground">{order.customer_name}</div>
-                            {order.customer_phone && (
-                                <div className="flex items-center text-sm text-muted-foreground">
-                                    <Phone className="w-4 h-4 mr-2" />
-                                    {order.customer_phone}
-                                </div>
+                    {/* Customer Details Card */}
+                    <Card className="bg-card border-border">
+                        <CardHeader>
+                            <CardTitle className="text-lg">Customer</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {order.customer_name ? (
+                                <>
+                                    <div className="font-medium text-foreground">{order.customer_name}</div>
+                                    {order.customer_phone && (
+                                        <div className="flex items-center text-sm text-muted-foreground">
+                                            <Phone className="w-4 h-4 mr-2" />
+                                            {order.customer_phone}
+                                        </div>
+                                    )}
+                                    {order.customer_address && (
+                                        <div className="flex items-start text-sm text-muted-foreground">
+                                            <MapPin className="w-4 h-4 mr-2 mt-0.5" />
+                                            {order.customer_address}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="text-sm text-muted-foreground italic">Walking Customer</div>
                             )}
-                            {order.customer_address && (
-                                <div className="flex items-start text-sm text-muted-foreground">
-                                    <MapPin className="w-4 h-4 mr-2 mt-0.5" />
-                                    {order.customer_address}
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="text-sm text-muted-foreground italic">Walking Customer</div>
-                    )}
-                </CardContent>
-            </Card >
-        </div >
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div >
     );
 }

@@ -21,7 +21,7 @@ interface Viewer {
         display_name: string | null;
         display_name_ml: string | null;
         profile_image_url: string | null;
-    };
+    } | null;
 }
 
 export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: StoryDetailModalProps) {
@@ -130,35 +130,38 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                                 No views yet
                             </div>
                         ) : (
-                            viewers.map((item, index) => (
-                                <div key={index} className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${index * 50}ms` }}>
-                                    {/* Avatar */}
-                                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border border-border">
-                                        {item.user.profile_image_url ? (
-                                            <img
-                                                src={item.user.profile_image_url}
-                                                alt={item.user.display_name || 'User'}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold">
-                                                {(item.user.display_name?.[0] || 'U').toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
+                            viewers.map((item, index) => {
+                                const user = item.user;
+                                return (
+                                    <div key={index} className="flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${index * 50}ms` }}>
+                                        {/* Avatar */}
+                                        <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border border-border">
+                                            {user?.profile_image_url ? (
+                                                <img
+                                                    src={user.profile_image_url}
+                                                    alt={user.display_name || 'User'}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-bold">
+                                                    {(user?.display_name?.[0] || 'U').toUpperCase()}
+                                                </div>
+                                            )}
+                                        </div>
 
-                                    {/* Info */}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">
-                                            {item.user.display_name || 'Unknown User'}
-                                            {item.user.display_name_ml && <span className="text-xs text-muted-foreground ml-1">({item.user.display_name_ml})</span>}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {formatDistanceToNow(new Date(item.viewed_at), { addSuffix: true })}
-                                        </p>
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-foreground truncate">
+                                                {user?.display_name || 'Unknown User'}
+                                                {user?.display_name_ml && <span className="text-xs text-muted-foreground ml-1">({user.display_name_ml})</span>}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(new Date(item.viewed_at), { addSuffix: true })}
+                                            </p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>

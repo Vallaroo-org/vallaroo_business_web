@@ -78,7 +78,11 @@ export default function InvoicePage() {
                     Back to Details
                 </Link>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={handleShare}>
+                    <Button
+                        variant="outline"
+                        onClick={handleShare}
+                        className="border-gray-200 text-gray-900 hover:bg-gray-100 hover:text-black"
+                    >
                         <Share2 className="w-4 h-4 mr-2" />
                         Share
                     </Button>

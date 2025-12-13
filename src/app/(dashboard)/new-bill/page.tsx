@@ -135,15 +135,19 @@ export default function NewBillPage() {
     // Payment State
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
     const [paidAmount, setPaidAmount] = useState<string>('');
+    const [discount, setDiscount] = useState<number>(0);
+
+    const subTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const totalPayable = Math.max(0, subTotal - discount);
 
     // Update paid amount when status updates or total changes
     useEffect(() => {
         if (paymentStatus === 'paid') {
-            setPaidAmount(cartTotal.toString());
+            setPaidAmount(totalPayable.toString());
         } else if (paymentStatus === 'unpaid') {
             setPaidAmount('0');
         }
-    }, [paymentStatus, cartTotal]);
+    }, [paymentStatus, totalPayable]);
 
     const handleCheckout = async () => {
         if (cart.length === 0) return alert('Cart is empty');
@@ -154,13 +158,13 @@ export default function NewBillPage() {
             // Validate Partial Amount
             let finalPaidAmount = parseFloat(paidAmount);
             if (paymentStatus === 'partial') {
-                if (isNaN(finalPaidAmount) || finalPaidAmount < 0 || finalPaidAmount >= cartTotal) {
+                if (isNaN(finalPaidAmount) || finalPaidAmount < 0 || finalPaidAmount > totalPayable) {
                     alert('Please enter a valid partial amount (less than total)');
                     setSubmitting(false);
                     return;
                 }
             } else if (paymentStatus === 'paid') {
-                finalPaidAmount = cartTotal;
+                finalPaidAmount = totalPayable;
             } else {
                 finalPaidAmount = 0;
             }
@@ -180,9 +184,9 @@ export default function NewBillPage() {
                     customer_name: selectedCustomer?.name || 'Walking Customer',
                     customer_phone: selectedCustomer?.phone_number,
                     items: cart,
-                    total: cartTotal,
-                    subtotal: cartTotal,
-                    discount: 0,
+                    total: totalPayable,
+                    subtotal: subTotal,
+                    discount: discount,
                     issued_at: now.toISOString(),
                     payment_status: paymentStatus,
                     paid_amount: finalPaidAmount
@@ -364,7 +368,7 @@ export default function NewBillPage() {
                                     onChange={(e) => setCustomerSearch(e.target.value)}
                                 />
                                 {customerSearch && (
-                                    <div className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 p-1">
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-black border border-border rounded-xl shadow-xl max-h-60 overflow-y-auto z-50 p-1">
                                         {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
                                             <button
                                                 key={c.id}
@@ -445,29 +449,56 @@ export default function NewBillPage() {
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm text-muted-foreground">
                             <span>Subtotal</span>
-                            <span>₹{cartTotal}</span>
+                            <span>₹{subTotal}</span>
                         </div>
-                        <div className="flex justify-between text-sm text-muted-foreground">
-                            <span>Tax (0%)</span>
-                            <span>₹0</span>
+                        <div className="flex justify-between items-center text-sm text-muted-foreground">
+                            <span>Discount</span>
+                            <div className="w-24">
+                                <Input
+                                    type="number"
+                                    value={discount || ''}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        setDiscount(isNaN(val) ? 0 : val);
+                                    }}
+                                    className="h-8 text-right bg-background"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
                         </div>
 
                         {/* Payment Status Selection */}
                         <div className="pt-2 border-t border-border space-y-3">
                             <span className="text-sm font-medium">Payment Status</span>
                             <div className="grid grid-cols-3 gap-2">
-                                {(['paid', 'unpaid', 'partial'] as const).map((status) => (
-                                    <button
-                                        key={status}
-                                        onClick={() => setPaymentStatus(status)}
-                                        className={`px-3 py-2 text-sm rounded-lg border transition-all ${paymentStatus === status
-                                                ? 'bg-primary text-primary-foreground border-primary'
-                                                : 'bg-background hover:bg-muted border-border'
-                                            }`}
-                                    >
-                                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                                    </button>
-                                ))}
+                                <button
+                                    onClick={() => setPaymentStatus('paid')}
+                                    className={`px-3 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'paid'
+                                        ? 'bg-[#16a34a] text-white border-[#16a34a] font-medium'
+                                        : 'bg-background hover:bg-muted border-border'
+                                        }`}
+                                >
+                                    Paid
+                                </button>
+                                <button
+                                    onClick={() => setPaymentStatus('unpaid')}
+                                    className={`px-3 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'unpaid'
+                                        ? 'bg-[#dc2626] text-white border-[#dc2626] font-medium'
+                                        : 'bg-background hover:bg-muted border-border'
+                                        }`}
+                                >
+                                    Unpaid
+                                </button>
+                                <button
+                                    onClick={() => setPaymentStatus('partial')}
+                                    className={`px-3 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'partial'
+                                        ? 'bg-[#ca8a04] text-white border-[#ca8a04] font-medium'
+                                        : 'bg-background hover:bg-muted border-border'
+                                        }`}
+                                >
+                                    Partial
+                                </button>
                             </div>
 
                             {paymentStatus === 'partial' && (
@@ -486,7 +517,7 @@ export default function NewBillPage() {
 
                         <div className="pt-2 border-t border-border flex justify-between items-end">
                             <span className="text-base font-semibold">Total Payable</span>
-                            <span className="text-2xl font-bold text-primary">₹{cartTotal}</span>
+                            <span className="text-2xl font-bold text-primary">₹{totalPayable}</span>
                         </div>
                     </div>
 

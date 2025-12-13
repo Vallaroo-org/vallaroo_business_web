@@ -153,7 +153,7 @@ export default function BusinessesPage() {
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-medium text-foreground">Shops</h2>
-                    <Link href="/onboarding/shop">
+                    <Link href={`/onboarding/shop?businessId=${selectedBusiness.id}`}>
                         <Button variant="outline" size="sm">
                             <Plus className="w-4 h-4 mr-2" />
                             New Shop
@@ -184,7 +184,7 @@ export default function BusinessesPage() {
                             <Store className="w-12 h-12 mx-auto text-muted-foreground mb-3 opacity-50" />
                             <h3 className="text-sm font-medium text-foreground">No shops found</h3>
                             <p className="mt-1 text-sm text-muted-foreground">Create a shop to start selling.</p>
-                            <Link href="/onboarding/shop" className="mt-4 inline-block">
+                            <Link href={`/onboarding/shop?businessId=${selectedBusiness.id}`} className="mt-4 inline-block">
                                 <Button size="sm">Create First Shop</Button>
                             </Link>
                         </div>

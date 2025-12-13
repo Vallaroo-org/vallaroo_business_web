@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { Business, Shop } from '@/lib/types';
+import { Business, Shop, StaffMember } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -10,6 +10,7 @@ interface BusinessContextType {
     shops: Shop[];
     selectedBusiness: Business | null;
     selectedShop: Shop | null;
+    currentStaff: StaffMember | null; // Added currentStaff
     isLoading: boolean;
     setBusiness: (business: Business | null) => void;
     setShop: (shop: Shop) => void;
@@ -23,11 +24,47 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     const [shops, setShops] = useState<Shop[]>([]);
     const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
     const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+    const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null); // State for current staff
+    const [userStaffRecords, setUserStaffRecords] = useState<StaffMember[]>([]); // cache all records
     const [isLoading, setIsLoading] = useState(true);
 
     const supabase = createClient();
     const router = useRouter();
     const pathname = usePathname();
+
+    // Helper to determine active staff record based on context
+    const determineActiveStaff = (
+        staffList: StaffMember[],
+        business: Business | null,
+        shop: Shop | null
+    ): StaffMember | null => {
+        if (!staffList.length) return null;
+
+        // 1. Shop Context
+        if (shop) {
+            // A. Specific shop role
+            const shopRole = staffList.find(s => s.shop_id === shop.id);
+            if (shopRole) return shopRole;
+
+            // B. Business-level role for this shop's business
+            const businessRole = staffList.find(s => s.business_id === shop.business_id && !s.shop_id);
+            if (businessRole) return businessRole;
+        }
+
+        // 2. Business Context
+        if (business) {
+            // A. Business-level role
+            const businessRole = staffList.find(s => s.business_id === business.id && !s.shop_id);
+            if (businessRole) return businessRole;
+
+            // B. Any role for this business
+            const anyRole = staffList.find(s => s.business_id === business.id);
+            if (anyRole) return anyRole;
+        }
+
+        // 3. Fallback
+        return staffList[0];
+    };
 
     const loadContext = async () => {
         setIsLoading(true);
@@ -45,15 +82,28 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
                 .eq('id', user.id)
                 .single();
 
-            // 2. Fetch businesses (User is staff/owner)
-            // 2. Fetch businesses (User is owner OR staff)
-            // First, get business IDs where user is staff
-            const { data: staffMembers } = await supabase
+            // 2. Fetch ALL businesses logic via Staff Members
+            // Get ALL staff records for this user (to support multi-role logic)
+            const { data: allStaffMembers } = await supabase
                 .from('staff_members')
-                .select('business_id')
+                .select('*, roles(name, role_permissions(permissions(slug)))') // Join roles if needed, though types uses flat role. 
+                // Note: The previous Flutter fix relied on explicit role table joins. 
+                // Here types.ts StaffRole is a string enum. Let's assume the view or query handles it or we map it.
+                // Actually the types.ts definitions for StaffMember has 'role: StaffRole'. 
+                // The DB staff_members table has role_id. 
+                // We should probably select everything and let Supabase mapping logic (if any) or manual mapping occur.
+                // For now, let's select basic columns matching the type.
                 .eq('user_id', user.id);
 
-            const staffBusinessIds = staffMembers?.map((sm: any) => sm.business_id) || [];
+            const typedStaffList = (allStaffMembers || []) as unknown as StaffMember[];
+            // Note: DB returns snake_case, Type expects snake_case for fields like business_id? 
+            // Type definition in types.ts:
+            // business_id: string; shop_id?: string; user_id?: string;
+            // DB columns are business_id, shop_id. So keys match.
+
+            setUserStaffRecords(typedStaffList);
+
+            const staffBusinessIds = allStaffMembers?.map((sm: any) => sm.business_id) || [];
 
             let query = supabase.from('businesses').select('*');
 
@@ -70,7 +120,6 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
             }
 
             const fetchedBusinesses = businessesData as Business[] || [];
-
             setBusinesses(fetchedBusinesses);
 
             if (fetchedBusinesses.length === 0) {
@@ -82,24 +131,19 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
             }
 
             // 3. Determine Active Business
-            // Priority: UserProfile Default -> First in list
             let activeBusiness: Business | null = null;
-
-            // Prefer UserProfile default if available
             if (userProfile?.default_business_id) {
                 activeBusiness = fetchedBusinesses.find(b => b.id === userProfile.default_business_id) || null;
             }
-
-            // Fallback to first business
             if (!activeBusiness) {
                 activeBusiness = fetchedBusinesses[0];
             }
 
+            let activeShop: Shop | null = null;
             if (activeBusiness) {
-                // Set business but don't trigger the setter's side effects yet to avoid double fetching
                 setSelectedBusiness(activeBusiness);
 
-                // 4. Fetch Shops for Active Business
+                // 4. Fetch Shops
                 const { data: shopData } = await supabase
                     .from('shops')
                     .select('*')
@@ -109,18 +153,18 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
                 setShops(fetchedShops);
 
                 // 5. Determine Active Shop
-                // Priority: UserProfile Default -> First in list
-                let activeShop: Shop | null = null;
                 if (userProfile?.default_shop_id) {
                     activeShop = fetchedShops.find(s => s.id === userProfile.default_shop_id) || null;
                 }
-
                 if (!activeShop) {
                     activeShop = fetchedShops[0] || null;
                 }
-
                 setSelectedShop(activeShop);
             }
+
+            // 6. Set Active Staff using new logic
+            const activeStaff = determineActiveStaff(typedStaffList, activeBusiness, activeShop);
+            setCurrentStaff(activeStaff);
 
         } catch (error) {
             console.error('Error loading business context:', error);
@@ -148,9 +192,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setSelectedBusiness(business);
 
         if (business) {
-            // Update User Profile Default
             updateDefaultPreference(business.id, undefined);
-
             setIsLoading(true);
             const { data: shopData } = await supabase
                 .from('shops')
@@ -160,13 +202,18 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
             const fetchedShops = shopData || [];
             setShops(fetchedShops);
 
-            // Default to first shop or existing default if valid
             const newShop = fetchedShops[0] || null;
-            setShop(newShop); // This will also update default shop
+            setShop(newShop); // This will update shop & staff
+
+            // Recalculate staff for new business context (shop is newShop)
+            const newStaff = determineActiveStaff(userStaffRecords, business, newShop);
+            setCurrentStaff(newStaff);
+
             setIsLoading(false);
         } else {
             setShops([]);
             setShop(null);
+            setCurrentStaff(null);
         }
     };
 
@@ -175,6 +222,9 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         if (shop) {
             updateDefaultPreference(undefined, shop.id);
         }
+        // Recalculate staff for new shop context
+        const newStaff = determineActiveStaff(userStaffRecords, selectedBusiness, shop);
+        setCurrentStaff(newStaff);
     };
 
     return (
@@ -184,6 +234,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
                 shops,
                 selectedBusiness,
                 selectedShop,
+                currentStaff,
                 isLoading,
                 setBusiness,
                 setShop,

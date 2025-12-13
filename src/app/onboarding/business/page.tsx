@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Loader2, Store, User, CheckCircle2, Globe, Building2, MapPin, Phone } from 'lucide-react';
 import { createBusinessAction } from '@/app/actions/onboarding';
+import { useLanguage } from '@/contexts/language-context';
 
 enum Step {
     BUSINESS = 0,
@@ -17,8 +18,10 @@ enum Step {
 export default function CreateBusinessPage() {
     const [step, setStep] = useState<Step>(Step.BUSINESS);
     const [loading, setLoading] = useState(false);
-    const [showMalayalam, setShowMalayalam] = useState(false);
+    const { locale } = useLanguage();
     const router = useRouter();
+
+    const isMalayalam = locale === 'ml';
 
     const [formData, setFormData] = useState({
         name: '',
@@ -84,6 +87,11 @@ export default function CreateBusinessPage() {
 
     return (
         <div className="max-w-3xl mx-auto px-4 py-8">
+            <div className="mb-6 text-center">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Register New Business</h1>
+                <p className="text-muted-foreground mt-2">Start by providing your business details.</p>
+            </div>
+
             <div className="mb-8">
                 <nav aria-label="Progress">
                     <ol role="list" className="space-y-4 md:flex md:space-x-8 md:space-y-0">
@@ -94,12 +102,12 @@ export default function CreateBusinessPage() {
                                 <li key={label} className="md:flex-1">
                                     <div className={`
                                         group flex flex-col border-l-4 py-2 pl-4 md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4
-                                        ${isComplete ? 'border-indigo-600' : isCurrent ? 'border-indigo-600' : 'border-gray-200'}
+                                        ${isComplete ? 'border-primary' : isCurrent ? 'border-primary' : 'border-muted'}
                                     `}>
-                                        <span className={`text-sm font-medium ${isComplete || isCurrent ? 'text-indigo-600' : 'text-gray-500'}`}>
+                                        <span className={`text-sm font-medium ${isComplete || isCurrent ? 'text-primary' : 'text-muted-foreground'}`}>
                                             Step {index + 1}
                                         </span>
-                                        <span className="text-sm font-medium">{label}</span>
+                                        <span className="text-sm font-medium text-foreground">{label}</span>
                                     </div>
                                 </li>
                             );
@@ -112,49 +120,41 @@ export default function CreateBusinessPage() {
                 {step === Step.BUSINESS && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold flex items-center gap-2">
-                                <Store className="h-5 w-5 text-gray-500" />
+                            <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+                                <Store className="h-5 w-5 text-muted-foreground" />
                                 Business Details
                             </h2>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs font-bold ${!showMalayalam ? 'text-indigo-600' : 'text-gray-400'}`}>EN</span>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" checked={showMalayalam} onChange={e => setShowMalayalam(e.target.checked)} className="sr-only peer" />
-                                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                </label>
-                                <span className={`text-xs font-bold ${showMalayalam ? 'text-indigo-600' : 'text-gray-400'}`}>ML</span>
-                            </div>
                         </div>
 
                         <div className="grid gap-6">
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
-                                    Business Name {showMalayalam && '(Malayalam)'} <span className="text-red-500">*</span>
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
+                                    Business Name {isMalayalam && '(Malayalam)'} <span className="text-red-500">*</span>
                                 </label>
                                 <Input
-                                    value={showMalayalam ? formData.nameMl : formData.name}
-                                    onChange={(e) => updateField(showMalayalam ? 'nameMl' : 'name', e.target.value)}
-                                    placeholder={showMalayalam ? "വല്ലാറൂ" : "e.g. Vallaroo Inc"}
+                                    value={isMalayalam ? formData.nameMl : formData.name}
+                                    onChange={(e) => updateField(isMalayalam ? 'nameMl' : 'name', e.target.value)}
+                                    placeholder={isMalayalam ? "വല്ലാറൂ" : "e.g. Vallaroo Inc"}
                                 />
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
-                                    Description {showMalayalam && '(Malayalam)'}
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
+                                    Description {isMalayalam && '(Malayalam)'}
                                 </label>
                                 <Input
-                                    value={showMalayalam ? formData.descriptionMl : formData.description}
-                                    onChange={(e) => updateField(showMalayalam ? 'descriptionMl' : 'description', e.target.value)}
-                                    placeholder={showMalayalam ? "വിവരണം" : "Brief description of your business"}
+                                    value={isMalayalam ? formData.descriptionMl : formData.description}
+                                    onChange={(e) => updateField(isMalayalam ? 'descriptionMl' : 'description', e.target.value)}
+                                    placeholder={isMalayalam ? "വിവരണം" : "Brief description of your business"}
                                 />
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
                                     Website (Optional)
                                 </label>
                                 <div className="relative">
-                                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         className="pl-9"
                                         value={formData.website}
@@ -165,11 +165,11 @@ export default function CreateBusinessPage() {
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
                                     Headquarters City <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         className="pl-9"
                                         value={formData.city}
@@ -185,15 +185,15 @@ export default function CreateBusinessPage() {
                 {step === Step.OWNER && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold flex items-center gap-2">
-                                <User className="h-5 w-5 text-gray-500" />
+                            <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+                                <User className="h-5 w-5 text-muted-foreground" />
                                 Owner Information
                             </h2>
                         </div>
 
                         <div className="grid gap-6">
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
                                     Owner Name <span className="text-red-500">*</span>
                                 </label>
                                 <Input
@@ -204,11 +204,11 @@ export default function CreateBusinessPage() {
                             </div>
 
                             <div>
-                                <label className="text-sm font-medium mb-1.5 block">
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">
                                     Phone Number <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
                                         className="pl-9"
                                         type="tel"
@@ -225,40 +225,40 @@ export default function CreateBusinessPage() {
                 {step === Step.REVIEW && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-semibold flex items-center gap-2">
-                                <CheckCircle2 className="h-5 w-5 text-gray-500" />
+                            <h2 className="text-xl font-semibold flex items-center gap-2 text-foreground">
+                                <CheckCircle2 className="h-5 w-5 text-muted-foreground" />
                                 Review & Confirm
                             </h2>
                         </div>
 
-                        <div className="bg-gray-50 p-4 rounded-lg space-y-4 text-sm">
-                            <div className="grid grid-cols-3 gap-2 border-b border-gray-200 pb-2">
-                                <span className="text-gray-500">Business Name</span>
+                        <div className="bg-muted/50 p-4 rounded-lg space-y-4 text-sm text-foreground">
+                            <div className="grid grid-cols-3 gap-2 border-b border-border pb-2">
+                                <span className="text-muted-foreground">Business Name</span>
                                 <span className="col-span-2 font-medium">{formData.name}</span>
                             </div>
                             {formData.nameMl && (
-                                <div className="grid grid-cols-3 gap-2 border-b border-gray-200 pb-2">
-                                    <span className="text-gray-500">Name (ML)</span>
+                                <div className="grid grid-cols-3 gap-2 border-b border-border pb-2">
+                                    <span className="text-muted-foreground">Name (ML)</span>
                                     <span className="col-span-2 font-medium">{formData.nameMl}</span>
                                 </div>
                             )}
-                            <div className="grid grid-cols-3 gap-2 border-b border-gray-200 pb-2">
-                                <span className="text-gray-500">City</span>
+                            <div className="grid grid-cols-3 gap-2 border-b border-border pb-2">
+                                <span className="text-muted-foreground">City</span>
                                 <span className="col-span-2 font-medium">{formData.city}</span>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 border-b border-gray-200 pb-2">
-                                <span className="text-gray-500">Owner</span>
+                            <div className="grid grid-cols-3 gap-2 border-b border-border pb-2">
+                                <span className="text-muted-foreground">Owner</span>
                                 <span className="col-span-2 font-medium">{formData.ownerName}</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
-                                <span className="text-gray-500">Phone</span>
+                                <span className="text-muted-foreground">Phone</span>
                                 <span className="col-span-2 font-medium">{formData.ownerPhone}</span>
                             </div>
                         </div>
                     </div>
                 )}
 
-                <div className="mt-8 flex justify-between pt-4 border-t border-gray-100">
+                <div className="mt-8 flex justify-between pt-4 border-t border-border">
                     <Button
                         variant="ghost"
                         onClick={handleBack}

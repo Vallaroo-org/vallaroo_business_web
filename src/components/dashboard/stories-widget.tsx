@@ -224,7 +224,13 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
                         <div key={story.id} className="relative w-20 h-32 flex-shrink-0 group cursor-pointer" onClick={() => setSelectedStory(story)}>
                             <div className="w-full h-full rounded-lg overflow-hidden border border-border bg-gray-100 relative">
                                 <img
-                                    src={story.media_url}
+                                    src={(() => {
+                                        const url = story.media_url;
+                                        if (url.includes('/storage/v1/object/public/')) {
+                                            return `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=300&height=480&resize=cover`;
+                                        }
+                                        return url;
+                                    })()}
                                     alt="Story"
                                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                 />

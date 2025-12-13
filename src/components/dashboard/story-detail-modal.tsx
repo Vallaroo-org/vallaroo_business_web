@@ -81,9 +81,31 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                         table: 'story_views',
                         filter: `story_id=eq.${storyId}`
                     },
-                    (payload) => {
+                    async (payload) => {
                         console.log('Realtime update received:', payload);
-                        fetchViewers();
+                        if (payload.eventType === 'INSERT') {
+                            const newView = payload.new as { viewer_id: string; viewed_at: string };
+                            // Fetch only the new user's profile
+                            const { data: userData, error } = await supabase
+                                .from('user_profiles')
+                                .select('id, display_name, display_name_ml, profile_image_url')
+                                .eq('id', newView.viewer_id)
+                                .single();
+
+                            if (!error && userData) {
+                                setViewers((prev) => {
+                                    // Avoid duplicates just in case
+                                    if (prev.some(v => v.user?.id === userData.id)) return prev;
+                                    return [{
+                                        viewed_at: newView.viewed_at,
+                                        user: userData
+                                    }, ...prev];
+                                });
+                            }
+                        } else {
+                            // For DELETE or UPDATE, full refresh is safer/easier
+                            fetchViewers();
+                        }
                     }
                 )
                 .subscribe();
@@ -124,7 +146,12 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                 {/* Left: Image */}
                 <div className="w-full md:w-2/3 h-1/2 md:h-full bg-black flex items-center justify-center relative group">
                     <img
-                        src={mediaUrl}
+                        src={(() => {
+                            if (mediaUrl.includes('/storage/v1/object/public/')) {
+                                return `${mediaUrl.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=1280&height=1280&resize=contain`;
+                            }
+                            return mediaUrl;
+                        })()}
                         alt="Story Detail"
                         className="max-w-full max-h-full object-contain"
                     />
@@ -169,7 +196,13 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                                         <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border border-border">
                                             {user?.profile_image_url ? (
                                                 <img
-                                                    src={user.profile_image_url}
+                                                    src={(() => {
+                                                        const url = user.profile_image_url;
+                                                        if (url && url.includes('/storage/v1/object/public/')) {
+                                                            return `${url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')}?width=100&height=100&resize=cover`;
+                                                        }
+                                                        return url || '';
+                                                    })()}
                                                     alt={user.display_name || 'User'}
                                                     className="w-full h-full object-cover"
                                                 />

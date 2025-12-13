@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBusiness } from '@/hooks/use-business';
@@ -25,14 +26,17 @@ export default function OnlineOrdersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const supabase = createClient();
     const { selectedShop, isLoading: contextLoading } = useBusiness();
+    const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 50;
 
     useEffect(() => {
         if (!contextLoading && selectedShop) {
-            fetchOrders();
+            fetchOrders(0);
         }
     }, [contextLoading, selectedShop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (currentOffset: number) => {
         try {
             setDataLoading(true);
             if (!selectedShop) return;
@@ -41,11 +45,26 @@ export default function OnlineOrdersPage() {
                 .from('orders')
                 .select('*')
                 .eq('shop_id', selectedShop.id)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .range(currentOffset, currentOffset + LIMIT - 1);
 
             if (error) throw error;
-            setOrders(data || []);
 
+            const newOrders = data || [];
+
+            if (currentOffset === 0) {
+                setOrders(newOrders);
+            } else {
+                setOrders(prev => [...prev, ...newOrders]);
+            }
+
+            if (newOrders.length < LIMIT) {
+                setHasMore(false);
+            } else {
+                setHasMore(true);
+            }
+
+            setOffset(currentOffset + LIMIT);
         } catch (error) {
             console.error('Error loading online orders:', JSON.stringify(error, null, 2));
         } finally {
@@ -53,7 +72,12 @@ export default function OnlineOrdersPage() {
         }
     };
 
-    const isLoading = contextLoading || dataLoading;
+    const handleLoadMore = () => {
+        fetchOrders(offset);
+    };
+
+    const isLoading = contextLoading || (dataLoading && offset === 0);
+    const isLoadingMore = dataLoading && offset > 0;
 
     const filteredOrders = orders.filter(order => {
         const searchLower = searchTerm.toLowerCase();
@@ -88,41 +112,57 @@ export default function OnlineOrdersPage() {
                             <p className="mt-1 text-sm text-muted-foreground">Orders from the customer app will appear here.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-border">
-                                <thead className="bg-muted/50">
-                                    <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-card divide-y divide-border">
-                                    {filteredOrders.map((order) => (
-                                        <tr key={order.id} className="hover:bg-muted/50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                                                {new Date(order.created_at).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-foreground">{order.customer_name}</div>
-                                                <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                    ${order.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                                                        order.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                                                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
-                                                    {order.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                                ₹{order.total_amount}
-                                            </td>
+                        <div className="flex flex-col">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-border">
+                                    <thead className="bg-muted/50">
+                                        <tr>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="bg-card divide-y divide-border">
+                                        {filteredOrders.map((order) => (
+                                            <tr key={order.id} className="hover:bg-muted/50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                                    {new Date(order.created_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-foreground">{order.customer_name}</div>
+                                                    <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                                                            order.status === 'cancelled' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                                                                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+                                                        {order.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                    ₹{order.total_amount}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Load More Button */}
+                            {hasMore && (
+                                <div className="p-4 border-t border-border flex justify-center">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadMore}
+                                        disabled={isLoadingMore}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isLoadingMore ? 'Loading...' : 'Load More Orders'}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>

@@ -18,14 +18,18 @@ export default function BillHistoryPage() {
     const [sortConfig, setSortConfig] = useState<{ key: keyof Order; direction: 'asc' | 'desc' } | null>(null);
     const supabase = createClient();
     const { selectedShop, isLoading: contextLoading } = useBusiness();
+    const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 50;
 
     useEffect(() => {
         if (!contextLoading && selectedShop) {
-            fetchOrders();
+            // Initial load
+            fetchOrders(0);
         }
     }, [contextLoading, selectedShop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (currentOffset: number) => {
         try {
             setDataLoading(true);
             if (!selectedShop) return;
@@ -34,16 +38,36 @@ export default function BillHistoryPage() {
                 .from('bills')
                 .select('*')
                 .eq('shop_id', selectedShop.id)
-                .order('issued_at', { ascending: false });
+                .order('issued_at', { ascending: false })
+                .range(currentOffset, currentOffset + LIMIT - 1);
 
             if (error) throw error;
-            setOrders(bills || []);
+
+            const newBills = bills || [];
+
+            if (currentOffset === 0) {
+                setOrders(newBills);
+            } else {
+                setOrders(prev => [...prev, ...newBills]);
+            }
+
+            if (newBills.length < LIMIT) {
+                setHasMore(false);
+            } else {
+                setHasMore(true);
+            }
+
+            setOffset(currentOffset + LIMIT);
 
         } catch (error) {
             console.error('Error loading bill history:', JSON.stringify(error, null, 2));
         } finally {
             setDataLoading(false);
         }
+    };
+
+    const handleLoadMore = () => {
+        fetchOrders(offset);
     };
 
     const handleSort = (key: keyof Order) => {
@@ -54,7 +78,8 @@ export default function BillHistoryPage() {
         setSortConfig({ key, direction });
     };
 
-    const isLoading = contextLoading || dataLoading;
+    const isLoading = contextLoading || (dataLoading && offset === 0);
+    const isLoadingMore = dataLoading && offset > 0;
 
     const filteredOrders = orders.filter(order => {
         const searchLower = searchTerm.toLowerCase();
@@ -117,83 +142,99 @@ export default function BillHistoryPage() {
                             <p className="mt-1 text-sm text-muted-foreground">Sales you make will appear here.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-border">
-                                <thead className="bg-muted/50">
-                                    <tr>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                            onClick={() => handleSort('issued_at')}
-                                        >
-                                            Date <SortIcon column="issued_at" />
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                            onClick={() => handleSort('bill_number')}
-                                        >
-                                            Bill # <SortIcon column="bill_number" />
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                            onClick={() => handleSort('customer_name')}
-                                        >
-                                            Customer <SortIcon column="customer_name" />
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                            onClick={() => handleSort('payment_status')}
-                                        >
-                                            Status <SortIcon column="payment_status" />
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
-                                            onClick={() => handleSort('total')}
-                                        >
-                                            Total <SortIcon column="total" />
-                                        </th>
-                                        <th scope="col" className="relative px-6 py-3">
-                                            <span className="sr-only">Actions</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-card divide-y divide-border">
-                                    {filteredOrders.map((order) => (
-                                        <tr key={order.id} className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => window.location.href = `/bill-history/${order.id}`}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                                                {new Date(order.issued_at).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                                {order.bill_number}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-foreground">{order.customer_name || 'Walking Customer'}</div>
-                                                {order.customer_phone && <div className="text-xs text-muted-foreground">{order.customer_phone}</div>}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                                                    ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                                                        order.payment_status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                                                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
-                                                    {order.payment_status || 'unpaid'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                                ₹{order.total}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <Link href={`/bill-history/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">
-                                                    <ChevronRight className="w-5 h-5" />
-                                                </Link>
-                                            </td>
+                        <div className="flex flex-col">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-border">
+                                    <thead className="bg-muted/50">
+                                        <tr>
+                                            <th
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                onClick={() => handleSort('issued_at')}
+                                            >
+                                                Date <SortIcon column="issued_at" />
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                onClick={() => handleSort('bill_number')}
+                                            >
+                                                Bill # <SortIcon column="bill_number" />
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                onClick={() => handleSort('customer_name')}
+                                            >
+                                                Customer <SortIcon column="customer_name" />
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                onClick={() => handleSort('payment_status')}
+                                            >
+                                                Status <SortIcon column="payment_status" />
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                onClick={() => handleSort('total')}
+                                            >
+                                                Total <SortIcon column="total" />
+                                            </th>
+                                            <th scope="col" className="relative px-6 py-3">
+                                                <span className="sr-only">Actions</span>
+                                            </th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="bg-card divide-y divide-border">
+                                        {filteredOrders.map((order) => (
+                                            <tr key={order.id} className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => window.location.href = `/bill-history/${order.id}`}>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                                    {new Date(order.issued_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                    {order.bill_number}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <div className="text-sm text-foreground">{order.customer_name || 'Walking Customer'}</div>
+                                                    {order.customer_phone && <div className="text-xs text-muted-foreground">{order.customer_phone}</div>}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                                        ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                                            order.payment_status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                                                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                                                        {order.payment_status || 'unpaid'}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                    ₹{order.total}
+                                                </td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                    <Link href={`/bill-history/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">
+                                                        <ChevronRight className="w-5 h-5" />
+                                                    </Link>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Load More Button */}
+                            {hasMore && (
+                                <div className="p-4 border-t border-border flex justify-center">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadMore}
+                                        disabled={isLoadingMore}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isLoadingMore ? 'Loading...' : 'Load More Bills'}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>

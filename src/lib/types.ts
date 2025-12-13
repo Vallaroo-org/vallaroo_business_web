@@ -178,3 +178,27 @@ export interface UserProfile {
     updated_at?: string | null;
     deleted_at?: string | null;
 }
+
+export interface Subscription {
+    id: string;
+    user_id: string;
+    plan_id: string;
+    razorpay_subscription_id?: string;
+    status: 'active' | 'created' | 'authenticated' | 'past_due' | 'halted' | 'cancelled' | 'completed' | 'expired';
+    current_period_start?: string;
+    current_period_end?: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Plan {
+    id: string;
+    name: string;
+    price: number;
+    interval: 'monthly' | 'yearly';
+    currency: string;
+    features: {
+        max_businesses: number;
+        max_shops_per_business: number;
+    };
+}

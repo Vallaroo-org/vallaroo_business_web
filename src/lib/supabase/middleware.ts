@@ -34,14 +34,23 @@ export async function updateSession(request: NextRequest) {
         data: { user },
     } = await supabase.auth.getUser()
 
+    const path = request.nextUrl.pathname
+
+    // 1. Authenticated users should not see login/signup pages
+    if (user && (path.startsWith('/login') || path.startsWith('/signup'))) {
+        return NextResponse.redirect(new URL('/', request.url))
+    }
+
+    // 2. Unauthenticated users trying to access protected routes
     if (
         !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth')
+        !path.startsWith('/login') &&
+        !path.startsWith('/signup') &&
+        !path.startsWith('/auth')
     ) {
-        // no user, potentially respond by redirecting the user to the login page
         const url = request.nextUrl.clone()
         url.pathname = '/login'
+        url.searchParams.set('next', path)
         return NextResponse.redirect(url)
     }
 

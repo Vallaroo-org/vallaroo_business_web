@@ -1,35 +1,13 @@
-import { login, signInWithGoogle } from './actions'
-import { Store, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { signup, signInWithGoogle } from '../login/actions'
+import { Store, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
 
-export default async function LoginPage({
+export default async function SignupPage({
     searchParams,
 }: {
-    searchParams: Promise<{ message?: string; error?: string; verification_sent?: string; next?: string }>
+    searchParams: Promise<{ message?: string; error?: string; next?: string }>
 }) {
     const params = await searchParams;
     const next = params.next || '/';
-
-    if (params.verification_sent) {
-        return (
-            <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-white">
-                <div className="w-full max-w-sm text-center animate-in fade-in zoom-in duration-300">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50 mb-6">
-                        <CheckCircle2 className="h-8 w-8 text-green-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2 font-display tracking-tight">Check your inbox</h2>
-                    <p className="text-gray-500 mb-8 leading-relaxed">
-                        We've sent a magic link to your email. Click it to verify your account and get started.
-                    </p>
-                    <a
-                        href="/login"
-                        className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-gray-800 transition-all duration-200"
-                    >
-                        Back to Sign in
-                    </a>
-                </div>
-            </div>
-        )
-    }
 
     return (
         <div className="flex min-h-screen bg-white">
@@ -46,9 +24,9 @@ export default async function LoginPage({
                     </div>
 
                     <div className="mb-10 text-center">
-                        <h2 className="text-3xl font-bold tracking-tight text-gray-900 font-display">Welcome back</h2>
+                        <h2 className="text-3xl font-bold tracking-tight text-gray-900 font-display">Create Account</h2>
                         <p className="mt-2 text-base text-gray-500">
-                            Please enter your details to sign in.
+                            Start managing your business smarter today.
                         </p>
                     </div>
 
@@ -72,19 +50,14 @@ export default async function LoginPage({
                             </div>
 
                             <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                        Password
-                                    </label>
-                                    <a href="#" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
-                                        Forgot?
-                                    </a>
-                                </div>
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
                                 <input
                                     id="password"
                                     name="password"
                                     type="password"
-                                    autoComplete="current-password"
+                                    autoComplete="new-password"
                                     required
                                     className="block w-full rounded-md border-0 py-3.5 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6 bg-white !bg-white [&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827] transition-all duration-200 ease-in-out"
                                     placeholder="••••••••"
@@ -106,10 +79,10 @@ export default async function LoginPage({
                             )}
 
                             <button
-                                formAction={login}
+                                formAction={signup}
                                 className="flex w-full justify-center items-center rounded-lg bg-emerald-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all duration-200"
                             >
-                                Sign in
+                                Create Account
                             </button>
                         </form>
 
@@ -151,9 +124,9 @@ export default async function LoginPage({
                         </form>
 
                         <p className="text-center text-sm text-gray-500">
-                            Don't have an account?{' '}
-                            <a href="/signup" className="font-semibold text-emerald-900 hover:underline">
-                                Create free account
+                            Already have an account?{' '}
+                            <a href="/login" className="font-semibold text-emerald-900 hover:underline">
+                                Log in
                             </a>
                         </p>
                     </div>
@@ -170,24 +143,30 @@ export default async function LoginPage({
 
                 <div className="relative z-10 max-w-lg">
                     <h1 className="text-5xl md:text-6xl font-display font-medium text-white leading-tight mb-8">
-                        Enter <br />
-                        the Future <br />
+                        Join the <br />
+                        Future <br />
                         <span className="text-emerald-400">of Business,</span> <br />
                         today
                     </h1>
 
-                    {/* Mockup Card */}
-                    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 w-full max-w-sm ml-auto transform translate-y-8 rotate-[-5deg] shadow-2xl">
-                        <div className="flex items-center justify-between mb-8">
-                            <Store className="h-8 w-8 text-white/80" />
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/5">
+                            <div className="bg-emerald-500/20 p-2 rounded-full">
+                                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                            </div>
+                            <div className="text-white">
+                                <div className="font-semibold">Quick Setup</div>
+                                <div className="text-sm text-white/60">Get your shop online in minutes</div>
+                            </div>
                         </div>
-                        <div className="space-y-2 mb-8">
-                            <div className="text-3xl font-bold text-white tracking-tighter">$12,347.23</div>
-                            <div className="text-sm text-white/50">Combined Balance</div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <div className="text-white/80">Primary Business</div>
-                            <div className="font-mono text-white/90">**** 4829</div>
+                        <div className="flex items-center gap-4 bg-white/5 backdrop-blur-sm p-4 rounded-xl border border-white/5">
+                            <div className="bg-emerald-500/20 p-2 rounded-full">
+                                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+                            </div>
+                            <div className="text-white">
+                                <div className="font-semibold">Powerful Analytics</div>
+                                <div className="text-sm text-white/60">Track sales and growth in real-time</div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from '@/hooks/use-business';
 import { Product, Customer } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -214,6 +215,25 @@ export default function NewBillPage() {
 
             if (itemsError) throw itemsError;
 
+            // 3. Create Transaction for Initial Payment (if any)
+            if (finalPaidAmount > 0) {
+                const { error: transactionError } = await supabase
+                    .from('bill_transactions')
+                    .insert({
+                        id: crypto.randomUUID(),
+                        bill_id: bill.id,
+                        amount: finalPaidAmount,
+                        payment_method: 'cash', // Defaulting to cash for POS, or could add selector
+                        recorded_at: now.toISOString(),
+                        note: 'Initial payment',
+                        recorded_by: (await supabase.auth.getUser()).data.user?.id,
+                        business_id: selectedBusiness!.id,
+                        shop_id: selectedShop.id,
+                    });
+
+                if (transactionError) throw transactionError;
+            }
+
             router.push(`/bill-history/${bill.id}`);
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -295,7 +315,7 @@ export default function NewBillPage() {
                                     {/* Image / Gradient Area */}
                                     <div className={`h-2/3 w-full bg-gradient-to-br ${getGradient(product.id)} p-4 flex items-start justify-end p-2 relative`}>
                                         <div className="absolute top-2 right-2 bg-black/20 backdrop-blur-md px-2 py-1 rounded-lg text-white text-xs font-bold">
-                                            ₹{product.price}
+                                            {formatCurrency(product.price)}
                                         </div>
                                         <div className="mt-auto w-full">
                                             <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
@@ -409,10 +429,10 @@ export default function NewBillPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start">
                                             <span className="text-sm font-medium line-clamp-1">{item.product.name}</span>
-                                            <span className="text-sm font-bold ml-2">₹{item.price * item.quantity}</span>
+                                            <span className="text-sm font-bold ml-2">{formatCurrency(item.price * item.quantity)}</span>
                                         </div>
                                         <div className="flex items-center justify-between mt-1">
-                                            <span className="text-xs text-muted-foreground">₹{item.price} x {item.quantity}</span>
+                                            <span className="text-xs text-muted-foreground">{formatCurrency(item.price)} x {item.quantity}</span>
 
                                             <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-0.5">
                                                 <button
@@ -449,7 +469,7 @@ export default function NewBillPage() {
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm text-muted-foreground">
                             <span>Subtotal</span>
-                            <span>₹{subTotal}</span>
+                            <span>{formatCurrency(subTotal)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
                             <span>Discount</span>
@@ -517,7 +537,7 @@ export default function NewBillPage() {
 
                         <div className="pt-2 border-t border-border flex justify-between items-end">
                             <span className="text-base font-semibold">Total Payable</span>
-                            <span className="text-2xl font-bold text-primary">₹{totalPayable}</span>
+                            <span className="text-2xl font-bold text-primary">{formatCurrency(totalPayable)}</span>
                         </div>
                     </div>
 

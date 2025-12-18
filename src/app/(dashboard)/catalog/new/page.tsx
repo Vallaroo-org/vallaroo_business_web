@@ -23,6 +23,7 @@ export default function NewProductPage() {
         stock: 0,
         description: '',
         category_id: '',
+        global_category: '',
         unit: 'pcs',
         name_ml: '',
         mrp: 0,
@@ -64,6 +65,7 @@ export default function NewProductPage() {
                 stock: formData.stock || 0,
                 unit: formData.unit,
                 category_id: formData.category_id || null, // Allow null if not selected
+                global_category: formData.global_category || null,
                 description: formData.description || null,
                 min_stock_alert: formData.min_stock_alert || 0,
                 sku: formData.sku || null,
@@ -210,7 +212,7 @@ export default function NewProductPage() {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label htmlFor="category_id" className="block text-sm font-medium leading-6 text-gray-900">Category</label>
+                        <label htmlFor="category_id" className="block text-sm font-medium leading-6 text-gray-900">Shop Category</label>
                         <div className="mt-2">
                             <select
                                 id="category_id"
@@ -224,6 +226,25 @@ export default function NewProductPage() {
                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                                 ))}
                             </select>
+                        </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                        <label htmlFor="global_category" className="block text-sm font-medium leading-6 text-gray-900">Global Category</label>
+                        <div className="mt-2">
+                            <select
+                                id="global_category"
+                                name="global_category"
+                                value={formData.global_category || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            >
+                                <option value="">Select a global category</option>
+                                {['Grocery', 'Fashion', 'Electronics', 'Health', 'Home', 'Food', 'Other'].map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-gray-500">Helps customers find your product across Vallaroo.</p>
                         </div>
                     </div>
 

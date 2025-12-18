@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, Store } from 'lucide-react';
 
+import { QRCodeUpload } from './_components/qr-code-upload';
+
 export default function ShopProfilePage() {
     const supabase = createClient();
     const { selectedShop, setShop, isLoading: contextLoading } = useBusiness();
@@ -25,6 +27,8 @@ export default function ShopProfilePage() {
         closing_time: '',
         delivery_available: false,
         takeaway_available: false,
+        upi_id: '',
+        qr_code_url: '',
     });
 
     useEffect(() => {
@@ -40,6 +44,8 @@ export default function ShopProfilePage() {
                 closing_time: selectedShop.closing_time || '',
                 delivery_available: selectedShop.delivery_available || false,
                 takeaway_available: selectedShop.takeaway_available || false,
+                upi_id: selectedShop.upi_id || '',
+                qr_code_url: selectedShop.qr_code_url || '',
             });
         }
     }, [selectedShop]);
@@ -66,6 +72,8 @@ export default function ShopProfilePage() {
                 closing_time: formData.closing_time || null,
                 delivery_available: formData.delivery_available,
                 takeaway_available: formData.takeaway_available,
+                upi_id: formData.upi_id || null,
+                qr_code_url: formData.qr_code_url || null,
                 updated_at: new Date().toISOString(),
             };
 
@@ -245,6 +253,37 @@ export default function ShopProfilePage() {
                                     className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600"
                                 />
                                 <label htmlFor="takeaway_available" className="text-sm font-medium text-foreground">Takeaway / Booking Available</label>
+                            </div>
+                        </div>
+
+                        {/* Payment Settings */}
+                        <div className="pt-6 border-t border-border mt-6">
+                            <h3 className="text-lg font-medium text-foreground mb-4">Payment Settings</h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground">UPI ID</label>
+                                        <Input
+                                            name="upi_id"
+                                            value={formData.upi_id}
+                                            onChange={handleChange}
+                                            placeholder="e.g. merchant@upi"
+                                            className="bg-background border-input text-foreground"
+                                        />
+                                        <p className="text-xs text-muted-foreground">This ID will be used for UPI payments.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Store QR Code</label>
+                                    <QRCodeUpload
+                                        shopId={selectedShop.id}
+                                        url={formData.qr_code_url}
+                                        onUpload={(url) => setFormData(prev => ({ ...prev, qr_code_url: url }))}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-2">Upload a QR code image for payments.</p>
+                                </div>
                             </div>
                         </div>
 

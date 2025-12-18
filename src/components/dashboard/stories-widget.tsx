@@ -6,6 +6,7 @@ import { Story } from '@/lib/types';
 import { Loader2, Plus, Trash2, Image as ImageIcon, Eye } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import dynamic from 'next/dynamic';
+import { uploadToR2 } from '@/lib/r2-upload';
 
 const StoryEditorModal = dynamic(
     () => import('./story-editor-modal').then((mod) => mod.StoryEditorModal),
@@ -99,27 +100,12 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
         setUploading(true);
 
         try {
-            // 1. Upload to Storage
-            // Use original extension or default to png/jpg based on blob type if possible,
-            // but Filerobot often exports as config. defaulting to .png for safety usually works or derived from blob.type
+            // 1. Upload to R2
             const fileExt = editedBlob.type.split('/')[1] || 'png';
-            const fileName = `${Date.now()}.${fileExt}`;
-            const filePath = `${shopId}/${fileName}`;
+            const file = new File([editedBlob], `story.${fileExt}`, { type: editedBlob.type });
+            const { publicUrl } = await uploadToR2(file, `stories/${shopId}`);
 
-            const { error: uploadError } = await supabase.storage
-                .from('stories')
-                .upload(filePath, editedBlob, {
-                    contentType: editedBlob.type
-                });
-
-            if (uploadError) throw uploadError;
-
-            // 2. Get Public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('stories')
-                .getPublicUrl(filePath);
-
-            // 3. Insert into Table
+            // 2. Insert into Table
             const { error: dbError } = await supabase
                 .from('stories')
                 .insert({

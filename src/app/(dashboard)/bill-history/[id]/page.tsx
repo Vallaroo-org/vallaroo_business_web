@@ -8,6 +8,8 @@ import { ArrowLeft, Loader2, Printer, MapPin, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import DeliveryCard from '@/components/dashboard/delivery-card';
+import { formatCurrency } from '@/lib/utils';
 
 export default function BillDetailsPage() {
     const router = useRouter();
@@ -96,10 +98,10 @@ export default function BillDetailsPage() {
                                                 {item.quantity} {item.unit}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground text-right">
-                                                ₹{item.price}
+                                                {formatCurrency(item.price)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right">
-                                                ₹{item.price * item.quantity}
+                                                {formatCurrency(item.price * item.quantity)}
                                             </td>
                                         </tr>
                                     ))}
@@ -107,17 +109,17 @@ export default function BillDetailsPage() {
                                 <tfoot className="bg-muted/50">
                                     <tr>
                                         <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-muted-foreground">Subtotal</td>
-                                        <td className="px-6 py-3 text-right text-sm font-medium text-foreground">₹{order.subtotal}</td>
+                                        <td className="px-6 py-3 text-right text-sm font-medium text-foreground">{formatCurrency(order.subtotal)}</td>
                                     </tr>
                                     {order.discount > 0 && (
                                         <tr>
                                             <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-muted-foreground">Discount</td>
-                                            <td className="px-6 py-3 text-right text-sm font-medium text-green-600">-₹{order.discount}</td>
+                                            <td className="px-6 py-3 text-right text-sm font-medium text-green-600">-{formatCurrency(order.discount)}</td>
                                         </tr>
                                     )}
                                     <tr>
                                         <td colSpan={3} className="px-6 py-3 text-right text-base font-bold text-foreground">Total</td>
-                                        <td className="px-6 py-3 text-right text-base font-bold text-indigo-600 dark:text-indigo-400">₹{order.total}</td>
+                                        <td className="px-6 py-3 text-right text-base font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(order.total)}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -144,12 +146,12 @@ export default function BillDetailsPage() {
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Amount Paid</span>
-                                <span className="font-medium">₹{order.paid_amount || 0}</span>
+                                <span className="font-medium">{formatCurrency(order.paid_amount || 0)}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Balance</span>
                                 <span className="font-medium text-red-600 dark:text-red-400">
-                                    ₹{(order.total - (order.paid_amount || 0)).toFixed(2)}
+                                    {formatCurrency(order.total - (order.paid_amount || 0))}
                                 </span>
                             </div>
                         </CardContent>
@@ -182,6 +184,9 @@ export default function BillDetailsPage() {
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* Delivery Card */}
+                    <DeliveryCard orderId={orderId} orderStatus={order.status || 'pending'} />
                 </div>
             </div>
         </div >

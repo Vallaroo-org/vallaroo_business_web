@@ -8,6 +8,7 @@ import { Search, ChevronRight, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { formatCurrency } from '@/lib/utils';
 
 import { useBusiness } from '@/hooks/use-business';
 
@@ -209,7 +210,7 @@ export default function BillHistoryPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                                                    ₹{order.total}
+                                                    {formatCurrency(order.total)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <Link href={`/bill-history/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">

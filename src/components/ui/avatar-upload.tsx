@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, User } from 'lucide-react';
 import Image from 'next/image';
+import { uploadToR2 } from '@/lib/r2-upload';
 
 interface AvatarUploadProps {
     uid: string;
@@ -27,20 +28,11 @@ export default function AvatarUpload({ uid, url, onUpload, size = 150 }: AvatarU
             }
 
             const file = event.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${uid}-${Math.random()}.${fileExt}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file);
+            // Upload to R2 (Folder: avatars/uid)
+            const { publicUrl } = await uploadToR2(file, `avatars/${uid}`);
 
-            if (uploadError) {
-                throw uploadError;
-            }
-
-            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-
-            onUpload(data.publicUrl);
+            onUpload(publicUrl);
 
         } catch (error: unknown) {
             alert('Error uploading avatar!');

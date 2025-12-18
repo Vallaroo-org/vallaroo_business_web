@@ -8,6 +8,7 @@ import { Loader2, Printer, Share2, ArrowLeft, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBusiness } from '@/components/providers/business-provider';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/utils';
 // import { useLanguage } from '@/contexts/language-context';
 
 export default function InvoicePage() {
@@ -26,7 +27,7 @@ export default function InvoicePage() {
             try {
                 const { data, error } = await supabase
                     .from('bills')
-                    .select('*, items:bill_items(*)')
+                    .select('*, items:bill_items(*), transactions:bill_transactions(*)')
                     .eq('id', orderId)
                     .single();
 
@@ -149,8 +150,12 @@ export default function InvoicePage() {
                                     {item.name_ml && <div className="text-xs text-gray-400">{item.name_ml}</div>}
                                 </td>
                                 <td className="py-4 text-right text-sm text-gray-600">{item.quantity} {item.unit}</td>
-                                <td className="py-4 text-right text-sm text-gray-600">₹{item.price.toFixed(2)}</td>
-                                <td className="py-4 text-right text-sm font-medium text-gray-900">₹{(item.price * item.quantity).toFixed(2)}</td>
+                                <td className="py-4 text-right text-sm text-gray-600">
+                                    {formatCurrency(item.price)}
+                                </td>
+                                <td className="py-4 text-right text-sm font-medium text-gray-900">
+                                    {formatCurrency(item.price * item.quantity)}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -161,20 +166,54 @@ export default function InvoicePage() {
                     <div className="w-full sm:w-1/2 space-y-3">
                         <div className="flex justify-between text-sm text-gray-600">
                             <span>Subtotal</span>
-                            <span>₹{order.subtotal.toFixed(2)}</span>
+                            <span>{formatCurrency(order.subtotal)}</span>
                         </div>
                         {order.discount > 0 && (
                             <div className="flex justify-between text-sm text-green-600">
                                 <span>Discount</span>
-                                <span>- ₹{order.discount.toFixed(2)}</span>
+                                <span>-{formatCurrency(order.discount)}</span>
                             </div>
                         )}
                         <div className="border-t border-gray-200 pt-3 flex justify-between items-center">
                             <span className="text-base font-bold text-gray-900">Total</span>
-                            <span className="text-xl font-bold text-indigo-600">₹{order.total.toFixed(2)}</span>
+                            <span className="text-xl font-bold text-indigo-600">{formatCurrency(order.total)}</span>
                         </div>
                     </div>
                 </div>
+
+                {/* Payment History */}
+                {order.transactions && order.transactions.length > 0 && (
+                    <div className="mt-8 break-inside-avoid">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Payment History</h3>
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-100">
+                                    <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                                    <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Method</th>
+                                    <th className="text-right py-2 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {order.transactions.map((t) => (
+                                    <tr key={t.id}>
+                                        <td className="py-2 text-sm text-gray-900">
+                                            {new Date(t.recorded_at).toLocaleString('en-IN', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric',
+                                                hour: 'numeric',
+                                                minute: 'numeric',
+                                                hour12: true
+                                            })}
+                                        </td>
+                                        <td className="py-2 text-sm text-gray-600 uppercase">{t.payment_method}</td>
+                                        <td className="py-2 text-right text-sm text-gray-900">{formatCurrency(t.amount)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
                 {/* Footer Message */}
                 <div className="mt-16 text-center text-sm text-gray-500">

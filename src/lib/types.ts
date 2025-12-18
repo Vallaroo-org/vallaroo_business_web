@@ -25,6 +25,7 @@ export interface Product {
     description_ml?: string | null;
     unit_ml?: string | null;
     brand_name_ml?: string | null;
+    global_category?: string | null;
 }
 
 export interface ProductCategory {
@@ -81,7 +82,18 @@ export interface Order {
     updated_at?: string | null;
     deleted_at?: string | null;
     payment_status?: 'paid' | 'unpaid' | 'partial';
+    status?: string;
     paid_amount?: number;
+    transactions?: BillTransaction[];
+}
+
+export interface BillTransaction {
+    id: string;
+    bill_id: string;
+    amount: number;
+    payment_method: string;
+    note?: string | null;
+    recorded_at: string;
 }
 
 export interface Business {
@@ -125,6 +137,8 @@ export interface Shop {
     created_at?: string | null;
     updated_at?: string | null;
     subscription_plan?: string | null;
+    upi_id?: string | null;
+    qr_code_url?: string | null;
 }
 
 export interface Story {
@@ -201,4 +215,35 @@ export interface Plan {
         max_businesses: number;
         max_shops_per_business: number;
     };
+}
+
+export interface OnlineOrderItem {
+    id: string;
+    order_id: string;
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    price: number;
+    total: number;
+    variant_name?: string | null;
+}
+
+export interface OnlineOrder {
+    id: string;
+    shop_id: string;
+    customer_id?: string | null;
+    customer_name: string;
+    customer_phone: string;
+    customer_address?: string | null;
+    customer_latitude?: number | null;
+    customer_longitude?: number | null;
+    items: OnlineOrderItem[];
+    total_amount: number;
+    status: 'pending' | 'accepted' | 'ready' | 'out_for_delivery' | 'completed' | 'cancelled' | 'rejected';
+    payment_method: string;
+    payment_status: string;
+    created_at: string;
+    updated_at: string;
+    note?: string | null;
+    delivery_charge?: number | null;
 }

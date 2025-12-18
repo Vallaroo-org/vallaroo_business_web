@@ -32,7 +32,8 @@ const navigationGroups = [
         group: 'Sales',
         items: [
             { name: 'new_bill', href: '/new-bill', icon: PlusCircle },
-            { name: 'orders', href: '/orders', icon: ShoppingCart },
+            { name: 'new_orders', href: '/orders', icon: ShoppingCart },
+            { name: 'order_history', href: '/orders/history', icon: FileText },
             { name: 'bill_history', href: '/bill-history', icon: FileText },
         ]
     },

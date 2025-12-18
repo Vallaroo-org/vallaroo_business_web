@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Search, Volume2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
@@ -10,65 +10,27 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBusiness } from '@/hooks/use-business';
 import { OnlineOrder } from '@/lib/types';
-import { toast } from 'sonner';
 
-export default function NewOrdersPage() {
+export default function OrderHistoryPage() {
     const [orders, setOrders] = useState<OnlineOrder[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const supabase = createClient();
     const { selectedShop, isLoading: contextLoading } = useBusiness();
+    const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 50;
 
-    // Statuses considered "New" or "Active"
-    const ACTIVE_STATUSES = ['pending', 'accepted', 'ready', 'out_for_delivery'];
+    // Statuses considered "History"
+    const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected'];
 
     useEffect(() => {
         if (!contextLoading && selectedShop) {
-            fetchOrders();
-
-            // Subscribe to Realtime changes
-            const channel = supabase
-                .channel('orders-realtime')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'orders',
-                        filter: `shop_id=eq.${selectedShop.id}`,
-                    },
-                    (payload) => {
-                        console.log('Realtime Order Update:', payload);
-                        if (payload.eventType === 'INSERT') {
-                            // Only add if it's an active status
-                            const newOrder = payload.new as OnlineOrder;
-                            if (ACTIVE_STATUSES.includes(newOrder.status)) {
-                                setOrders(prev => [newOrder, ...prev]);
-                                toast.info(`New Order received from ${newOrder.customer_name}!`);
-                                // Optional: Play sound
-                            }
-                        } else if (payload.eventType === 'UPDATE') {
-                            const updatedOrder = payload.new as OnlineOrder;
-                            setOrders(prev => {
-                                // If status is no longer active (e.g., completed), remove it
-                                if (!ACTIVE_STATUSES.includes(updatedOrder.status)) {
-                                    return prev.filter(o => o.id !== updatedOrder.id);
-                                }
-                                // Otherwise update it in place
-                                return prev.map(o => o.id === updatedOrder.id ? updatedOrder : o);
-                            });
-                        }
-                    }
-                )
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(channel);
-            };
+            fetchOrders(0);
         }
     }, [contextLoading, selectedShop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (currentOffset: number) => {
         try {
             setDataLoading(true);
             if (!selectedShop) return;
@@ -77,19 +39,40 @@ export default function NewOrdersPage() {
                 .from('orders')
                 .select('*')
                 .eq('shop_id', selectedShop.id)
-                .in('status', ACTIVE_STATUSES)
-                .order('created_at', { ascending: false });
+                .in('status', HISTORY_STATUSES)
+                .order('created_at', { ascending: false })
+                .range(currentOffset, currentOffset + LIMIT - 1);
 
             if (error) throw error;
-            setOrders(data || []);
+
+            const newOrders = data || [];
+
+            if (currentOffset === 0) {
+                setOrders(newOrders);
+            } else {
+                setOrders(prev => [...prev, ...newOrders]);
+            }
+
+            if (newOrders.length < LIMIT) {
+                setHasMore(false);
+            } else {
+                setHasMore(true);
+            }
+
+            setOffset(currentOffset + LIMIT);
         } catch (error) {
-            console.error('Error loading online orders:', JSON.stringify(error, null, 2));
+            console.error('Error loading order history:', JSON.stringify(error, null, 2));
         } finally {
             setDataLoading(false);
         }
     };
 
-    const isLoading = contextLoading || dataLoading;
+    const handleLoadMore = () => {
+        fetchOrders(offset);
+    };
+
+    const isLoading = contextLoading || (dataLoading && offset === 0);
+    const isLoadingMore = dataLoading && offset > 0;
 
     const filteredOrders = orders.filter(order => {
         const searchLower = searchTerm.toLowerCase();
@@ -100,14 +83,7 @@ export default function NewOrdersPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                    New Orders
-                    {filteredOrders.length > 0 && (
-                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
-                            {filteredOrders.length} Live
-                        </span>
-                    )}
-                </h1>
+                <h1 className="text-2xl font-bold text-foreground">Order History</h1>
             </div>
 
             <Card className="border-border bg-card">
@@ -116,7 +92,7 @@ export default function NewOrdersPage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             className="pl-8 bg-background border-input text-foreground"
-                            placeholder="Search active orders..."
+                            placeholder="Search history..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -124,11 +100,11 @@ export default function NewOrdersPage() {
                 </div>
                 <CardContent className="p-0 bg-card">
                     {isLoading ? (
-                        <div className="p-8 text-center text-muted-foreground">Loading orders...</div>
+                        <div className="p-8 text-center text-muted-foreground">Loading history...</div>
                     ) : filteredOrders.length === 0 ? (
                         <div className="p-12 text-center">
-                            <h3 className="text-sm font-semibold text-foreground">No active orders</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">New orders will appear here automatically.</p>
+                            <h3 className="text-sm font-semibold text-foreground">No order history found</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">Completed or cancelled orders will appear here.</p>
                         </div>
                     ) : (
                         <div className="flex flex-col">
@@ -136,7 +112,7 @@ export default function NewOrdersPage() {
                                 <table className="min-w-full divide-y divide-border">
                                     <thead className="bg-muted/50">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Date</th>
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
@@ -149,7 +125,7 @@ export default function NewOrdersPage() {
                                         {filteredOrders.map((order) => (
                                             <tr key={order.id} className="hover:bg-muted/50 transition-colors group cursor-pointer" onClick={() => window.location.href = `/orders/${order.id}`}>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                                                    {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {new Date(order.created_at).toLocaleDateString()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-foreground">{order.customer_name}</div>
@@ -157,9 +133,9 @@ export default function NewOrdersPage() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
-                                                        ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800 animate-pulse' :
-                                                            order.status === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
-                                                                'bg-green-100 text-green-800'}`}>
+                                                        ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                            order.status === 'cancelled' || order.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                                'bg-gray-100 text-gray-800'}`}>
                                                         {order.status.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
@@ -176,6 +152,20 @@ export default function NewOrdersPage() {
                                     </tbody>
                                 </table>
                             </div>
+
+                            {/* Load More Button */}
+                            {hasMore && (
+                                <div className="p-4 border-t border-border flex justify-center">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleLoadMore}
+                                        disabled={isLoadingMore}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {isLoadingMore ? 'Loading...' : 'Load More History'}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
@@ -183,4 +173,3 @@ export default function NewOrdersPage() {
         </div>
     );
 }
-

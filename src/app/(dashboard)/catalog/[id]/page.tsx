@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ProductCategory } from '@/lib/types';
+import { Product, ProductCategory } from '@/lib/types';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils'; // Assuming cn utility is available from previous steps
+import { cn } from '@/lib/utils';
+import { GLOBAL_CATEGORIES_HIERARCHY } from '@/lib/constants';
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -16,19 +17,21 @@ export default function EditProductPage() {
 
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
-    const [categories, setCategories] = useState<ProductCategory[]>([]);
+    const [globalCategories, setGlobalCategories] = useState<ProductCategory[]>([]);
+    const [subCategories, setSubCategories] = useState<{ id: string, name: string }[]>([]);
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<Partial<Product>>({
         name: '',
         name_ml: '',
-        price: '',
-        mrp: '',
-        stock: '',
+        price: 0,
+        mrp: 0,
+        stock: 0,
         unit: 'pcs',
-        category_id: '',
-        global_category: '',
+        category_id: null,
+        global_category_id: '',
+        global_sub_category_id: '',
         description: '',
-        min_stock_alert: '5',
+        min_stock_alert: 5,
         sku: '',
         is_active: true,
     });
@@ -37,8 +40,9 @@ export default function EditProductPage() {
         const fetchData = async () => {
             try {
                 setFetching(true);
-                const { data: catData } = await supabase.from('product_categories').select('*');
-                if (catData) setCategories(catData);
+                // Fetch Global Categories
+                const { data: catData } = await supabase.from('product_categories').select('*').order('name');
+                if (catData) setGlobalCategories(catData);
 
                 if (productId) {
                     const { data: product, error } = await supabase
@@ -49,17 +53,28 @@ export default function EditProductPage() {
 
                     if (error) throw error;
                     if (product) {
+                        // Fetch sub-categories if global category is set
+                        if (product.global_category_id) {
+                            const { data: subData } = await supabase
+                                .from('product_sub_categories')
+                                .select('id, name')
+                                .eq('category_id', product.global_category_id)
+                                .order('name');
+                            setSubCategories(subData || []);
+                        }
+
                         setFormData({
                             name: product.name,
                             name_ml: product.name_ml || '',
-                            price: product.price.toString(),
-                            mrp: product.mrp.toString(),
-                            stock: product.stock.toString(),
+                            price: product.price,
+                            mrp: product.mrp,
+                            stock: product.stock,
                             unit: product.unit || 'pcs',
-                            category_id: product.category_id || '',
-                            global_category: product.global_category || '',
+                            category_id: null, // Legacy
+                            global_category_id: product.global_category_id || '',
+                            global_sub_category_id: product.global_sub_category_id || '',
                             description: product.description || '',
-                            min_stock_alert: product.min_stock_alert.toString(),
+                            min_stock_alert: product.min_stock_alert,
                             sku: product.sku || '',
                             is_active: product.is_active ?? true,
                         });
@@ -76,6 +91,16 @@ export default function EditProductPage() {
         fetchData();
     }, [productId, router, supabase]);
 
+    const fetchSubCategories = async (categoryId: string) => {
+        const { data } = await supabase
+            .from('product_sub_categories')
+            .select('id, name')
+            .eq('category_id', categoryId)
+            .order('name');
+
+        setSubCategories(data || []);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -84,14 +109,15 @@ export default function EditProductPage() {
             const { error } = await supabase.from('products').update({
                 name: formData.name,
                 name_ml: formData.name_ml || null,
-                price: parseFloat(formData.price) || 0,
-                mrp: parseFloat(formData.mrp) || 0,
-                stock: parseFloat(formData.stock) || 0,
+                price: formData.price || 0,
+                mrp: formData.mrp || 0,
+                stock: formData.stock || 0,
                 unit: formData.unit,
-                category_id: formData.category_id || null,
-                global_category: formData.global_category || null,
+                category_id: null,
+                global_category_id: formData.global_category_id || null,
+                global_sub_category_id: formData.global_sub_category_id || null,
                 description: formData.description || null,
-                min_stock_alert: parseFloat(formData.min_stock_alert) || 0,
+                min_stock_alert: formData.min_stock_alert || 0,
                 sku: formData.sku || null,
                 is_active: formData.is_active,
             }).eq('id', productId);
@@ -115,26 +141,26 @@ export default function EditProductPage() {
     };
 
     if (fetching) {
-        return <div className="p-8 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+        return <div className="p-8 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-indigo-600 dark:text-indigo-400" /></div>;
     }
 
     return (
         <div className="max-w-2xl mx-auto space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/catalog" className="p-2 hover:bg-gray-100 rounded-full">
-                        <ArrowLeft className="w-5 h-5 text-gray-500" />
+                    <Link href="/catalog" className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                        <ArrowLeft className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                     </Link>
-                    <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Edit Product</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">Active</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Active</span>
                     <button
                         type="button"
                         onClick={() => setFormData(prev => ({ ...prev, is_active: !prev.is_active }))}
                         className={cn(
-                            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2",
-                            formData.is_active ? "bg-indigo-600" : "bg-gray-200"
+                            "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 dark:focus:ring-offset-gray-900",
+                            formData.is_active ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
                         )}
                     >
                         <span className={cn(
@@ -145,11 +171,11 @@ export default function EditProductPage() {
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 shadow-sm ring-1 ring-gray-900/5 dark:ring-gray-700 sm:rounded-xl p-6 space-y-6">
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
-                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900">Product Name *</label>
+                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Product Name *</label>
                         <div className="mt-2">
                             <input
                                 type="text"
@@ -158,30 +184,30 @@ export default function EditProductPage() {
                                 required
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label htmlFor="name_ml" className="block text-sm font-medium leading-6 text-gray-900">Name (Malayalam)</label>
+                        <label htmlFor="name_ml" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Name (Malayalam)</label>
                         <div className="mt-2">
                             <input
                                 type="text"
                                 name="name_ml"
                                 id="name_ml"
-                                value={formData.name_ml}
+                                value={formData.name_ml || ''}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900">Selling Price *</label>
+                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Selling Price *</label>
                         <div className="mt-2 relative rounded-md shadow-sm">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <span className="text-gray-500 sm:text-sm">₹</span>
+                                <span className="text-gray-500 dark:text-gray-400 sm:text-sm">₹</span>
                             </div>
                             <input
                                 type="number"
@@ -192,16 +218,16 @@ export default function EditProductPage() {
                                 step="0.01"
                                 value={formData.price}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="mrp" className="block text-sm font-medium leading-6 text-gray-900">MRP</label>
+                        <label htmlFor="mrp" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">MRP</label>
                         <div className="mt-2 relative rounded-md shadow-sm">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                <span className="text-gray-500 sm:text-sm">₹</span>
+                                <span className="text-gray-500 dark:text-gray-400 sm:text-sm">₹</span>
                             </div>
                             <input
                                 type="number"
@@ -211,13 +237,13 @@ export default function EditProductPage() {
                                 step="0.01"
                                 value={formData.mrp}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900">Current Stock *</label>
+                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Current Stock *</label>
                         <div className="mt-2">
                             <input
                                 type="number"
@@ -228,20 +254,20 @@ export default function EditProductPage() {
                                 step="any"
                                 value={formData.stock}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="unit" className="block text-sm font-medium leading-6 text-gray-900">Unit</label>
+                        <label htmlFor="unit" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Unit</label>
                         <div className="mt-2">
                             <select
                                 id="unit"
                                 name="unit"
-                                value={formData.unit}
+                                value={formData.unit || 'pcs'}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             >
                                 <option value="pcs">Pieces (pcs)</option>
                                 <option value="kg">Kilogram (kg)</option>
@@ -255,73 +281,81 @@ export default function EditProductPage() {
                         </div>
                     </div>
 
+                    {/* Removed Shop Category Field */}
+
                     <div className="sm:col-span-2">
-                        <label htmlFor="category_id" className="block text-sm font-medium leading-6 text-gray-900">Shop Category</label>
+                        <label htmlFor="global_category_id" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Global Category</label>
                         <div className="mt-2">
                             <select
-                                id="category_id"
-                                name="category_id"
-                                value={formData.category_id}
-                                onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                id="global_category_id"
+                                name="global_category_id"
+                                value={formData.global_category_id || ''}
+                                onChange={(e) => {
+                                    handleChange(e);
+                                    fetchSubCategories(e.target.value);
+                                    setFormData(prev => ({ ...prev, global_sub_category_id: '' })); // Reset sub
+                                }}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             >
-                                <option value="">Select a category</option>
-                                {categories.map((cat) => (
+                                <option value="">Select a global category</option>
+                                {globalCategories.map((cat) => (
                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                                 ))}
                             </select>
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Helps customers find your product across Vallaroo.</p>
                         </div>
                     </div>
 
-                    <div className="sm:col-span-2">
-                        <label htmlFor="global_category" className="block text-sm font-medium leading-6 text-gray-900">Global Category</label>
-                        <div className="mt-2">
-                            <select
-                                id="global_category"
-                                name="global_category"
-                                value={formData.global_category}
-                                onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                            >
-                                <option value="">Select a global category</option>
-                                {['Grocery', 'Fashion', 'Electronics', 'Health', 'Home', 'Food', 'Other'].map((cat) => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
-                            </select>
-                            <p className="mt-1 text-xs text-gray-500">Helps customers find your product across Vallaroo.</p>
+                    {formData.global_category_id && (
+                        <div className="sm:col-span-2">
+                            <label htmlFor="global_sub_category_id" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Global Sub-Category</label>
+                            <div className="mt-2 text-gray-900">
+                                <select
+                                    id="global_sub_category_id"
+                                    name="global_sub_category_id"
+                                    value={formData.global_sub_category_id || ''}
+                                    onChange={handleChange}
+                                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                >
+                                    <option value="">Select a sub-category</option>
+                                    {subCategories.map((sub) => (
+                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="sm:col-span-2">
-                        <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900">Description</label>
+                        <label htmlFor="description" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Description</label>
                         <div className="mt-2">
                             <textarea
                                 id="description"
                                 name="description"
                                 rows={3}
-                                value={formData.description}
+                                value={formData.description || ''}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="sku" className="block text-sm font-medium leading-6 text-gray-900">SKU</label>
+                        <label htmlFor="sku" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">SKU</label>
                         <div className="mt-2">
                             <input
                                 type="text"
                                 name="sku"
                                 id="sku"
-                                value={formData.sku}
+                                value={formData.sku || ''}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label htmlFor="min_stock_alert" className="block text-sm font-medium leading-6 text-gray-900">Low Stock Alert Level</label>
+                        <label htmlFor="min_stock_alert" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Low Stock Alert Level</label>
                         <div className="mt-2">
                             <input
                                 type="number"
@@ -330,15 +364,15 @@ export default function EditProductPage() {
                                 min="0"
                                 value={formData.min_stock_alert}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>
                     </div>
 
                 </div>
 
-                <div className="flex items-center justify-end gap-x-6 pt-4 border-t border-gray-100">
-                    <button type="button" onClick={() => router.back()} className="text-sm font-semibold leading-6 text-gray-900">Cancel</button>
+                <div className="flex items-center justify-end gap-x-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <button type="button" onClick={() => router.back()} className="text-sm font-semibold leading-6 text-gray-900 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400">Cancel</button>
                     <button
                         type="submit"
                         disabled={loading}

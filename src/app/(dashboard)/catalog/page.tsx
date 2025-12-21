@@ -71,11 +71,7 @@ export default function CatalogPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <h1 className="text-2xl font-bold text-foreground">Catalog</h1>
                 <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                        <Link href="/catalog/categories">
-                            Manage Categories
-                        </Link>
-                    </Button>
+
                     <Button asChild>
                         <Link href="/catalog/new">
                             <Plus className="w-4 h-4 mr-2" />

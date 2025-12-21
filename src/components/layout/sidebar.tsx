@@ -13,7 +13,8 @@ import {
     Building2,
     FileText,
     PlusCircle,
-    ChevronDown
+    ChevronDown,
+    Wrench
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -31,9 +32,9 @@ const navigationGroups = [
     {
         group: 'Sales',
         items: [
-            { name: 'new_bill', href: '/new-bill', icon: PlusCircle },
             { name: 'new_orders', href: '/orders', icon: ShoppingCart },
             { name: 'order_history', href: '/orders/history', icon: FileText },
+            { name: 'new_bill', href: '/new-bill', icon: PlusCircle },
             { name: 'bill_history', href: '/bill-history', icon: FileText },
         ]
     },
@@ -41,6 +42,7 @@ const navigationGroups = [
         group: 'Management',
         items: [
             { name: 'catalog', href: '/catalog', icon: ShoppingBag },
+            { name: 'services', href: '/services', icon: Wrench },
             { name: 'customers', href: '/customers', icon: Users },
         ]
     },
@@ -58,12 +60,15 @@ const navigationGroups = [
     }
 ];
 
+import { useNewOrdersCount } from '@/hooks/use-new-orders-count';
+
 export function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
     const { selectedBusiness, selectedShop } = useBusiness();
     const supabase = createClient();
     const { t } = useLanguage();
+    const newOrdersCount = useNewOrdersCount(selectedShop?.id);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -133,14 +138,21 @@ export function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose
                                         href={item.href}
                                         onClick={mobile ? onClose : undefined}
                                         className={cn(
-                                            "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                                            "flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
                                             isActive
                                                 ? "text-primary bg-primary/10"
                                                 : "text-muted-foreground hover:text-primary hover:bg-muted"
                                         )}
                                     >
-                                        <item.icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
-                                        {t(item.name)}
+                                        <div className="flex items-center">
+                                            <item.icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+                                            {t(item.name)}
+                                        </div>
+                                        {item.name === 'new_orders' && newOrdersCount > 0 && (
+                                            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+                                                {newOrdersCount}
+                                            </span>
+                                        )}
                                     </Link>
                                 );
                             })}

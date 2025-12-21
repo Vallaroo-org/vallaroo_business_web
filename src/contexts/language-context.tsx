@@ -21,6 +21,14 @@ const en: Record<string, string> = {
     'recent_activity': 'Recent Activity',
     'no_recent_activity': 'No recent activity found.',
     'from_last_month': 'from last month',
+    'new_orders': 'New Orders',
+    'order_history': 'Order History',
+    'services': 'Services',
+    'overview': 'Overview',
+    'sales': 'Sales',
+    'management': 'Management',
+    'analytics': 'Analytics',
+    'system': 'System',
 };
 
 const ml: Record<string, string> = {

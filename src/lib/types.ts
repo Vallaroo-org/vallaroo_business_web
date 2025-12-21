@@ -26,6 +26,10 @@ export interface Product {
     unit_ml?: string | null;
     brand_name_ml?: string | null;
     global_category?: string | null;
+    global_sub_category?: string | null;
+    global_category_id?: string | null;
+    global_sub_category_id?: string | null;
+    category?: ProductCategory;
 }
 
 export interface ProductCategory {
@@ -246,4 +250,34 @@ export interface OnlineOrder {
     updated_at: string;
     note?: string | null;
     delivery_charge?: number | null;
+}
+
+export interface ServiceCategory {
+    id: string;
+    name: string;
+    name_ml?: string | null;
+    description?: string | null;
+    description_ml?: string | null;
+    image_url?: string | null;
+    is_active: boolean;
+    created_at?: string | null;
+}
+
+export interface Service {
+    id: string;
+    business_id: string;
+    shop_id: string;
+    category_id?: string | null;
+    name: string;
+    name_ml?: string | null;
+    description?: string | null;
+    description_ml?: string | null;
+    price: number;
+    price_type: 'FIXED' | 'STARTING_FROM';
+    duration_minutes?: number | null;
+    image_urls?: string[] | null;
+    is_active: boolean;
+    created_at?: string | null;
+    updated_at?: string | null;
+    category?: ServiceCategory;
 }

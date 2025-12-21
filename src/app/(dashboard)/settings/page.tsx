@@ -23,12 +23,7 @@ export default function SettingsPage() {
             description: 'Manage currently selected shop settings',
             icon: Store
         },
-        {
-            name: 'Shop Categories',
-            href: '/settings/shop-categories',
-            description: 'Manage shop types (e.g. Retail, Service)',
-            icon: Tags
-        },
+
         {
             name: 'Staff & Permissions',
             href: '/settings/staff',

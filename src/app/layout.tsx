@@ -8,8 +8,8 @@ import { Toaster } from 'sonner';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Vallaroo Business',
-  description: 'Manage your business with Vallaroo',
+  title: "Vallaroo Business - Grow Your Local Business",
+  description: "Manage orders, products, and analytics with Vallaroo Business. The all-in-one platform for local merchants.",
   manifest: '/manifest.json',
 };
 

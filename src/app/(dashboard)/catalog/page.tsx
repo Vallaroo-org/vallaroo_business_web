@@ -36,10 +36,9 @@ export default function CatalogPage() {
             // Fetch Categories (Business Level)
             const { data: cats, error: catError } = await supabase
                 .from('product_categories')
-                .select('*')
-                .eq('business_id', selectedBusiness.id);
+                .select('*');
 
-            if (catError) console.error('Error fetching categories:', catError);
+            if (catError) console.error('Error fetching categories:', JSON.stringify(catError, null, 2));
             else setCategories(cats || []);
 
             // Fetch Products (Shop Level)

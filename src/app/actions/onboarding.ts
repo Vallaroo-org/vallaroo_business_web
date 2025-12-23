@@ -132,7 +132,8 @@ export async function createShopAction(businessId: string, formData: FormData) {
             delivery_available: deliveryAvailable,
             takeaway_available: takeawayAvailable,
             is_verified: false,
-            is_hidden: false
+            is_hidden: false,
+            shop_type: formData.get('shopType') as string || 'product'
         });
 
     if (error) {

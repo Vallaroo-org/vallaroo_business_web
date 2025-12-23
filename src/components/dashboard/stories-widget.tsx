@@ -43,7 +43,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const supabase = createClient();
 
-    const limit = subscriptionPlan === 'pro' ? 25 : 5;
+    const limit = subscriptionPlan === 'pro' ? 10 : subscriptionPlan === 'basic' ? 5 : 1;
     const canAdd = stories.length < limit;
 
     const fetchStories = async () => {
@@ -52,7 +52,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
                 .from('stories')
                 .select('*, story_views(count)')
                 .eq('shop_id', shopId)
-                .gt('expires_at', new Date().toISOString())
+                .gt('expires_at', new Date().toISOString()) // Fetch only active stories
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -112,6 +112,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
                     shop_id: shopId,
                     media_url: publicUrl,
                     media_type: 'image',
+                    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Explicitly set 24h expiry
                 });
 
             if (dbError) throw dbError;
@@ -137,7 +138,9 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
 
             if (dbError) throw dbError;
 
-            // 2. Delete from Storage (Optional cleanup, good practice)
+            // 2. Delete from Storage (Skipping for now as we use R2 directly via Edge Function)
+            // If we need to delete files, we should invoke an edge function or use a proper R2 client.
+            /*
             try {
                 const url = new URL(mediaUrl);
                 const pathParts = url.pathname.split('/stories/');
@@ -147,6 +150,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
             } catch (e) {
                 console.warn('Could not cleanup storage file', e);
             }
+            */
 
             setStories(prev => prev.filter(s => s.id !== storyId));
 

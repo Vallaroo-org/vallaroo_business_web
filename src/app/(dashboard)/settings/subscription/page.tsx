@@ -11,7 +11,8 @@ export default function SubscriptionPage() {
     const [currentPlan, setCurrentPlan] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [processing, setProcessing] = useState(false);
+    const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+    const [isRazorpayLoaded, setIsRazorpayLoaded] = useState(false);
     const supabase = createClient();
 
     useEffect(() => {
@@ -27,7 +28,7 @@ export default function SubscriptionPage() {
                 .from('subscriptions')
                 .select('*')
                 .eq('user_id', user.id)
-                .in('status', ['active', 'authenticated', 'created']) // 'created' logic needs care
+                .in('status', ['active', 'authenticated']) // Only fetch valid, paid subscriptions
                 .order('created_at', { ascending: false }) // Get latest
                 .limit(1)
                 .single();
@@ -48,8 +49,8 @@ export default function SubscriptionPage() {
     };
 
     const handleUpgrade = async (planKey: string) => {
-        if (processing) return;
-        setProcessing(true);
+        if (processingPlan) return;
+        setProcessingPlan(planKey);
 
         try {
             const response = await fetch('/api/subscription/create', {
@@ -62,7 +63,7 @@ export default function SubscriptionPage() {
 
             if (data.error) {
                 alert(data.error);
-                setProcessing(false);
+                setProcessingPlan(null);
                 return;
             }
 
@@ -72,14 +73,35 @@ export default function SubscriptionPage() {
                 name: 'Vallaroo Business',
                 description: `Upgrade to ${PLANS[planKey].name}`,
                 handler: async function (response: any) {
-                    // console.log('Payment Success:', response);
-                    alert('Subscription Successful!');
-                    fetchSubscription(); // Refresh state
-                    setProcessing(false);
+                    try {
+                        const verifyResponse = await fetch('/api/subscription/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_subscription_id: response.razorpay_subscription_id,
+                                razorpay_signature: response.razorpay_signature
+                            })
+                        });
+
+                        const verifyData = await verifyResponse.json();
+
+                        if (verifyData.success) {
+                            alert('Subscription Successful!');
+                            await fetchSubscription(); // Refresh state
+                        } else {
+                            alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
+                        }
+                    } catch (err) {
+                        console.error('Verification call failed', err);
+                        alert('Payment verification failed. Please contact support.');
+                    } finally {
+                        setProcessingPlan(null);
+                    }
                 },
                 modal: {
                     ondismiss: function () {
-                        setProcessing(false);
+                        setProcessingPlan(null);
                     }
                 },
                 theme: {
@@ -93,7 +115,7 @@ export default function SubscriptionPage() {
         } catch (error) {
             console.error('Payment Error:', error);
             alert('Something went wrong. Please try again.');
-            setProcessing(false);
+            setProcessingPlan(null);
         }
     };
 
@@ -105,7 +127,10 @@ export default function SubscriptionPage() {
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-10">
-            <Script src="https://checkout.razorpay.com/v1/checkout.js" />
+            <Script
+                src="https://checkout.razorpay.com/v1/checkout.js"
+                onLoad={() => setIsRazorpayLoaded(true)}
+            />
 
             <div>
                 <h1 className="text-2xl font-bold text-foreground">Subscription & Billing</h1>
@@ -140,6 +165,15 @@ export default function SubscriptionPage() {
             {/* Upgrade Options */}
             <div>
                 <h3 className="text-xl font-bold text-foreground mb-4">Available Plans</h3>
+
+                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-lg text-sm border border-blue-200 dark:border-blue-800">
+                    <p className="font-semibold mb-1">Payment Method Note:</p>
+                    <p>
+                        Subscriptions are recurring plans. You need to use a payment method that supports <strong>auto-debit</strong> (e.g., Credit Cards, UPI Autopay).
+                        In <strong>Test Mode</strong>, use Test Cards or enter <code>success@razorpay</code> for UPI.
+                    </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {plans.map((plan) => (
                         <div key={plan.id} className="border border-border rounded-lg p-6 bg-card flex flex-col hover:border-primary transition-colors">
@@ -194,10 +228,10 @@ export default function SubscriptionPage() {
                                 <Button
                                     className="mt-8 w-full"
                                     onClick={() => handleUpgrade(Object.keys(PLANS).find(key => PLANS[key].id === plan.id) || '')}
-                                    disabled={processing || (subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id))}
+                                    disabled={!!processingPlan || !isRazorpayLoaded || (subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id))}
                                     variant={subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? 'outline' : 'default'}
                                 >
-                                    {processing ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                                    {processingPlan === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? <Loader2 className="w-4 h-4 animate-spin" /> :
                                         (subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? 'Current Plan' : 'Upgrade')}
                                 </Button>
                             )}

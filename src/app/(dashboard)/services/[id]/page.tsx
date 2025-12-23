@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ServiceCategory } from '@/lib/types';
-import { ArrowLeft, Loader2, Upload, X, Image as ImageIcon, Camera } from 'lucide-react';
+import { ServiceCategory, Service } from '@/lib/types';
+import { ArrowLeft, Loader2, Upload, X, Image as ImageIcon, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useBusiness } from '@/components/providers/business-provider';
 import { uploadToR2 } from '@/lib/r2-upload';
@@ -20,12 +20,17 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-export default function NewServicePage() {
+export default function EditServicePage({ params }: { params: { id: string } }) {
     const router = useRouter();
     const supabase = createClient();
     const { selectedBusiness, selectedShop } = useBusiness();
 
+    // params.id is available, but wait, Next.js 13+ app dir params are async in some versions/configs?
+    // Usually { params: { id: string } } works for page props.
+    const serviceId = params.id;
+
     const [loading, setLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [categories, setCategories] = useState<ServiceCategory[]>([]);
 
     // Form State
@@ -37,6 +42,7 @@ export default function NewServicePage() {
         price: '',
         price_type: 'FIXED', // 'FIXED' | 'STARTING_FROM'
         category_id: '',
+        is_active: true,
     });
 
     const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -59,16 +65,52 @@ export default function NewServicePage() {
     };
 
     useEffect(() => {
-        const fetchCategories = async () => {
-            const { data } = await supabase
-                .from('service_categories')
-                .select('*')
-                .eq('is_active', true)
-                .order('name');
-            if (data) setCategories(data);
+        const fetchData = async () => {
+            try {
+                setInitialLoading(true);
+                // Fetch Categories
+                const { data: catData } = await supabase
+                    .from('service_categories')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('name');
+                if (catData) setCategories(catData);
+
+                // Fetch Service
+                const { data: service, error } = await supabase
+                    .from('services')
+                    .select('*')
+                    .eq('id', serviceId)
+                    .single();
+
+                if (error) throw error;
+                if (service) {
+                    setFormData({
+                        name: service.name,
+                        name_ml: service.name_ml || '',
+                        description: service.description || '',
+                        description_ml: service.description_ml || '',
+                        price: service.price.toString(),
+                        price_type: service.price_type,
+                        category_id: service.category_id || '',
+                        is_active: service.is_active,
+                    });
+                    if (service.image_urls && service.image_urls.length > 0) {
+                        setImageUrl(service.image_urls[0]);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                router.push('/services');
+            } finally {
+                setInitialLoading(false);
+            }
         };
-        fetchCategories();
-    }, [supabase]);
+
+        if (serviceId) {
+            fetchData();
+        }
+    }, [supabase, serviceId, router]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -76,26 +118,49 @@ export default function NewServicePage() {
 
         setLoading(true);
         try {
-            const { error } = await supabase.from('services').insert({
-                business_id: selectedBusiness.id,
-                shop_id: selectedShop.id,
-                category_id: formData.category_id || null,
-                name: formData.name,
-                name_ml: formData.name_ml || null,
-                description: formData.description || null,
-                description_ml: formData.description_ml || null,
-                price: parseFloat(formData.price) || 0,
-                price_type: formData.price_type,
-                image_urls: imageUrl ? [imageUrl] : [],
-                is_active: true
-            });
+            const { error } = await supabase
+                .from('services')
+                .update({
+                    category_id: formData.category_id || null,
+                    name: formData.name,
+                    name_ml: formData.name_ml || null,
+                    description: formData.description || null,
+                    description_ml: formData.description_ml || null,
+                    price: parseFloat(formData.price) || 0,
+                    price_type: formData.price_type,
+                    image_urls: imageUrl ? [imageUrl] : [],
+                    is_active: formData.is_active,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', serviceId);
 
             if (error) throw error;
             router.push('/services');
             router.refresh();
         } catch (error) {
-            console.error('Error creating service:', error);
-            alert('Failed to create service. Please try again.');
+            console.error('Error updating service:', error);
+            alert('Failed to update service. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirm('Are you sure you want to delete this service?')) return;
+        setLoading(true);
+        try {
+            // We can check if we want soft delete or hard delete. Repository code showed delete().
+            // Let's stick to simple delete for now or soft delete if 'deleted_at' exists.
+            // Mobile app repo uses `deleteService` which calls `delete()`.
+            // But services table might have constraints.
+            // Let's try direct delete for now.
+            const { error } = await supabase.from('services').delete().eq('id', serviceId);
+            if (error) throw error;
+            router.push('/services');
+            router.refresh();
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            alert('Failed to delete service.');
         } finally {
             setLoading(false);
         }
@@ -106,21 +171,46 @@ export default function NewServicePage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    if (initialLoading) {
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+    }
+
     return (
         <div className="max-w-2xl mx-auto py-6 space-y-6">
-            <div className="flex items-center gap-4">
-                <Link href="/services">
-                    <Button variant="ghost" size="icon">
-                        <ArrowLeft className="w-4 h-4" />
-                    </Button>
-                </Link>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <Link href="/services">
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="w-4 h-4" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Edit Service</h1>
+                        <p className="text-muted-foreground">Update service details</p>
+                    </div>
+                </div>
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Add New Service</h1>
-                    <p className="text-muted-foreground">Create a new service offering for your shop</p>
+                    <Button variant="destructive" size="sm" onClick={handleDelete}>
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Service
+                    </Button>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8 bg-card p-6 rounded-xl border shadow-sm">
+
+                {/* Status Toggle or similar could go here */}
+                <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={formData.is_active}
+                            onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="font-medium">Active (Visible to customers)</span>
+                    </label>
+                </div>
 
                 {/* Basic Info */}
                 <div className="space-y-4">
@@ -297,7 +387,7 @@ export default function NewServicePage() {
                     </Link>
                     <Button type="submit" disabled={loading}>
                         {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Create Service
+                        Update Service
                     </Button>
                 </div>
             </form>

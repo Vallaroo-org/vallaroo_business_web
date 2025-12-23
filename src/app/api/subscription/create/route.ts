@@ -58,14 +58,15 @@ export async function POST(req: Request) {
         const subscription: any = await razorpay.subscriptions.create(subscriptionOptions);
 
         // Store in DB
-        const { error: dbError } = await supabase.from('subscriptions').insert({
+        // Store in DB (Upsert)
+        const { error: dbError } = await supabase.from('subscriptions').upsert({
             user_id: user.id,
             plan_id: planKey,
             razorpay_subscription_id: subscription.id,
             status: 'created',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'user_id' });
 
         if (dbError) {
             console.error('DB Insert Error:', dbError);

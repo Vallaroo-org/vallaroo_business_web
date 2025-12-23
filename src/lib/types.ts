@@ -143,6 +143,14 @@ export interface Shop {
     subscription_plan?: string | null;
     upi_id?: string | null;
     qr_code_url?: string | null;
+    shop_type?: 'product' | 'service' | 'both';
+    is_temporarily_closed?: boolean;
+    closure_reason?: string | null;
+    closure_start_date?: string | null;
+    closure_end_date?: string | null;
+    hide_shop_during_closure?: boolean;
+    hide_products_during_closure?: boolean;
+    hide_services_during_closure?: boolean;
 }
 
 export interface Story {

@@ -72,6 +72,7 @@ function CreateShopForm() {
         name: '', nameMl: '',
         description: '', descriptionMl: '',
         categoryId: '',
+        shopType: 'product',
         phone: '', whatsapp: '',
 
         // Step 2: Location
@@ -157,6 +158,7 @@ function CreateShopForm() {
             data.append('categoryId', formData.categoryId);
             data.append('phoneNumber', formData.phone);
             data.append('whatsappNumber', formData.whatsapp);
+            data.append('shopType', formData.shopType || 'product');
 
             data.append('addressLine1', formData.address1);
             data.append('addressLine1Ml', formData.address1Ml);
@@ -256,6 +258,42 @@ function CreateShopForm() {
                             </div>
 
                             <div className="col-span-1 md:col-span-2">
+                                <label className="text-sm font-medium mb-1.5 block text-foreground">Shop Type <span className="text-red-500">*</span></label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center space-x-2 border p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors flex-1">
+                                        <input
+                                            type="radio"
+                                            name="shopType"
+                                            className="h-4 w-4 text-primary"
+                                            checked={formData.shopType === 'product' || !formData.shopType}
+                                            onChange={() => updateField('shopType', 'product')}
+                                        />
+                                        <span className="text-sm font-medium">Product Based</span>
+                                    </label>
+                                    <label className="flex items-center space-x-2 border p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors flex-1">
+                                        <input
+                                            type="radio"
+                                            name="shopType"
+                                            className="h-4 w-4 text-primary"
+                                            checked={formData.shopType === 'service'}
+                                            onChange={() => updateField('shopType', 'service')}
+                                        />
+                                        <span className="text-sm font-medium">Service Based</span>
+                                    </label>
+                                    <label className="flex items-center space-x-2 border p-3 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors flex-1">
+                                        <input
+                                            type="radio"
+                                            name="shopType"
+                                            className="h-4 w-4 text-primary"
+                                            checked={formData.shopType === 'both'}
+                                            onChange={() => updateField('shopType', 'both')}
+                                        />
+                                        <span className="text-sm font-medium">Both</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="col-span-1 md:col-span-2">
                                 <label className="text-sm font-medium mb-1.5 block text-foreground">Description</label>
                                 <div className="relative">
                                     <AlignLeft className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -312,184 +350,189 @@ function CreateShopForm() {
                             </div>
                         </div>
                     </div>
-                )}
+                )
+                }
 
                 {/* Step 2: Location */}
-                {currentStep === 2 && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 1</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                {
+                    currentStep === 2 && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 1</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            value={isMalayalam ? formData.address1Ml : formData.address1}
+                                            onChange={(e) => updateField(isMalayalam ? 'address1Ml' : 'address1', e.target.value)}
+                                            placeholder={isMalayalam ? "വിലാസം 1" : "Street, Building, etc."}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 2</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            value={isMalayalam ? formData.address2Ml : formData.address2}
+                                            onChange={(e) => updateField(isMalayalam ? 'address2Ml' : 'address2', e.target.value)}
+                                            placeholder={isMalayalam ? "വിലാസം 2" : "Apartment, Suite, Unit, etc."}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">City <span className="text-red-500">*</span></label>
                                     <Input
-                                        className="pl-9"
-                                        value={isMalayalam ? formData.address1Ml : formData.address1}
-                                        onChange={(e) => updateField(isMalayalam ? 'address1Ml' : 'address1', e.target.value)}
-                                        placeholder={isMalayalam ? "വിലാസം 1" : "Street, Building, etc."}
+                                        required
+                                        value={isMalayalam ? formData.cityMl : formData.city}
+                                        onChange={(e) => updateField(isMalayalam ? 'cityMl' : 'city', e.target.value)}
+                                        placeholder="e.g. Kochi"
                                     />
                                 </div>
-                            </div>
 
-                            <div className="col-span-1 md:col-span-2">
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 2</label>
-                                <div className="relative">
-                                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">State</label>
+                                    <select
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+                                        value={formData.state}
+                                        onChange={(e) => updateField('state', e.target.value)}
+                                    >
+                                        {INDIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Postal Code</label>
                                     <Input
-                                        className="pl-9"
-                                        value={isMalayalam ? formData.address2Ml : formData.address2}
-                                        onChange={(e) => updateField(isMalayalam ? 'address2Ml' : 'address2', e.target.value)}
-                                        placeholder={isMalayalam ? "വിലാസം 2" : "Apartment, Suite, Unit, etc."}
+                                        value={formData.postalCode}
+                                        onChange={(e) => updateField('postalCode', e.target.value)}
+                                        placeholder="682001"
                                     />
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">City <span className="text-red-500">*</span></label>
-                                <Input
-                                    required
-                                    value={isMalayalam ? formData.cityMl : formData.city}
-                                    onChange={(e) => updateField(isMalayalam ? 'cityMl' : 'city', e.target.value)}
-                                    placeholder="e.g. Kochi"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">State</label>
-                                <select
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
-                                    value={formData.state}
-                                    onChange={(e) => updateField('state', e.target.value)}
-                                >
-                                    {INDIAN_STATES.map(st => <option key={st} value={st}>{st}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Postal Code</label>
-                                <Input
-                                    value={formData.postalCode}
-                                    onChange={(e) => updateField('postalCode', e.target.value)}
-                                    placeholder="682001"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Country</label>
-                                <div className="relative">
-                                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        className="pl-9"
-                                        value={formData.country}
-                                        onChange={(e) => updateField('country', e.target.value)}
-                                        placeholder="India"
-                                    />
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Country</label>
+                                    <div className="relative">
+                                        <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            value={formData.country}
+                                            onChange={(e) => updateField('country', e.target.value)}
+                                            placeholder="India"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Latitude</label>
-                                <div className="relative">
-                                    <MapIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        className="pl-9"
-                                        type="number"
-                                        step="any"
-                                        value={formData.latitude}
-                                        onChange={(e) => updateField('latitude', e.target.value)}
-                                        placeholder="e.g. 9.9312"
-                                    />
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Latitude</label>
+                                    <div className="relative">
+                                        <MapIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            type="number"
+                                            step="any"
+                                            value={formData.latitude}
+                                            onChange={(e) => updateField('latitude', e.target.value)}
+                                            placeholder="e.g. 9.9312"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Longitude</label>
-                                <div className="relative">
-                                    <MapIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        className="pl-9"
-                                        type="number"
-                                        step="any"
-                                        value={formData.longitude}
-                                        onChange={(e) => updateField('longitude', e.target.value)}
-                                        placeholder="e.g. 76.2673"
-                                    />
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Longitude</label>
+                                    <div className="relative">
+                                        <MapIcon className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            className="pl-9"
+                                            type="number"
+                                            step="any"
+                                            value={formData.longitude}
+                                            onChange={(e) => updateField('longitude', e.target.value)}
+                                            placeholder="e.g. 76.2673"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Step 3: Operations */}
-                {currentStep === 3 && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Opening Time</label>
-                                <div className="relative">
-                                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="time"
-                                        className="pl-9"
-                                        value={formData.openingTime}
-                                        onChange={(e) => updateField('openingTime', e.target.value)}
-                                    />
+                {
+                    currentStep === 3 && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Opening Time</label>
+                                    <div className="relative">
+                                        <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            type="time"
+                                            className="pl-9"
+                                            value={formData.openingTime}
+                                            onChange={(e) => updateField('openingTime', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Closing Time</label>
+                                    <div className="relative">
+                                        <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            type="time"
+                                            className="pl-9"
+                                            value={formData.closingTime}
+                                            onChange={(e) => updateField('closingTime', e.target.value)}
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="text-sm font-medium mb-1.5 block text-foreground">Closing Time</label>
-                                <div className="relative">
-                                    <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        type="time"
-                                        className="pl-9"
-                                        value={formData.closingTime}
-                                        onChange={(e) => updateField('closingTime', e.target.value)}
+
+                            <div className="space-y-4 pt-4">
+                                <label className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors bg-card border-border shadow-sm">
+                                    <input
+                                        type="checkbox"
+                                        className="h-5 w-5 text-primary rounded border-input focus:ring-primary"
+                                        checked={formData.deliveryAvailable}
+                                        onChange={(e) => updateField('deliveryAvailable', e.target.checked)}
                                     />
-                                </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-full">
+                                            <Truck className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div className="text-sm text-foreground font-medium">
+                                            Delivery Available
+                                        </div>
+                                    </div>
+                                </label>
+
+                                <label className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors bg-card border-border shadow-sm">
+                                    <input
+                                        type="checkbox"
+                                        className="h-5 w-5 text-primary rounded border-input focus:ring-primary"
+                                        checked={formData.takeawayAvailable}
+                                        onChange={(e) => updateField('takeawayAvailable', e.target.checked)}
+                                    />
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-primary/10 rounded-full">
+                                            <ShoppingBag className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div className="text-sm text-foreground font-medium">
+                                            Takeaway / Booking Available
+                                        </div>
+                                    </div>
+                                </label>
                             </div>
                         </div>
-
-                        <div className="space-y-4 pt-4">
-                            <label className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors bg-card border-border shadow-sm">
-                                <input
-                                    type="checkbox"
-                                    className="h-5 w-5 text-primary rounded border-input focus:ring-primary"
-                                    checked={formData.deliveryAvailable}
-                                    onChange={(e) => updateField('deliveryAvailable', e.target.checked)}
-                                />
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-primary/10 rounded-full">
-                                        <Truck className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div className="text-sm text-foreground font-medium">
-                                        Delivery Available
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label className="flex items-center space-x-3 p-4 border rounded-xl hover:bg-muted/50 cursor-pointer transition-colors bg-card border-border shadow-sm">
-                                <input
-                                    type="checkbox"
-                                    className="h-5 w-5 text-primary rounded border-input focus:ring-primary"
-                                    checked={formData.takeawayAvailable}
-                                    onChange={(e) => updateField('takeawayAvailable', e.target.checked)}
-                                />
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-primary/10 rounded-full">
-                                        <ShoppingBag className="h-5 w-5 text-primary" />
-                                    </div>
-                                    <div className="text-sm text-foreground font-medium">
-                                        Takeaway / Booking Available
-                                    </div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
 
             {/* Footer / Actions */}
-            <div className="bg-muted/30 p-6 border-t border-border flex justify-between">
+            < div className="bg-muted/30 p-6 border-t border-border flex justify-between" >
                 <Button
                     variant="outline"
                     onClick={handlePrev}
@@ -499,19 +542,21 @@ function CreateShopForm() {
                     Back
                 </Button>
 
-                {currentStep < totalSteps ? (
-                    <Button onClick={handleNext}>
-                        Next
-                        <ChevronRight className="w-4 h-4 ml-2" />
-                    </Button>
-                ) : (
-                    <Button onClick={handleSubmit} disabled={loading} className="px-6">
-                        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
-                        Create Shop
-                    </Button>
-                )}
-            </div>
-        </Card>
+                {
+                    currentStep < totalSteps ? (
+                        <Button onClick={handleNext}>
+                            Next
+                            <ChevronRight className="w-4 h-4 ml-2" />
+                        </Button>
+                    ) : (
+                        <Button onClick={handleSubmit} disabled={loading} className="px-6">
+                            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+                            Create Shop
+                        </Button>
+                    )
+                }
+            </div >
+        </Card >
     );
 }
 

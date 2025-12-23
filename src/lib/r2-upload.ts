@@ -39,6 +39,8 @@ export async function uploadToR2(
     }
 
     // 3. Upload to R2 using the Presigned URL
+    console.log('Uploading to R2 Presigned URL:', data.uploadUrl);
+
     const uploadResponse = await fetch(data.uploadUrl, {
         method: 'PUT',
         body: fileToUpload,

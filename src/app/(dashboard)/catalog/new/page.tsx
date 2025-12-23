@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { GLOBAL_CATEGORIES_HIERARCHY } from '@/lib/constants';
 
 import { useBusiness } from '@/hooks/use-business';
+import { uploadToR2 } from '@/lib/r2-upload';
+import { Camera, Image as ImageIcon, X } from 'lucide-react'; // Add icons
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -31,7 +33,17 @@ export default function NewProductPage() {
         mrp: 0,
         min_stock_alert: 5,
         sku: '',
+        cost_price: 0,
+        brand_name: '',
+        barcode: '',
+        manufacturing_date: '',
+        expiry_date: '',
+        // We'll handle variants as a separate simple string for now to match mobile "Size"
+        // variant_size: '' (Not in Product type directly, will handle separately or cast)
     });
+    const [variantSize, setVariantSize] = useState('');
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
 
     const [globalCategories, setGlobalCategories] = useState<ProductCategory[]>([]);
     const [subCategories, setSubCategories] = useState<{ id: string, name: string }[]>([]);
@@ -67,6 +79,22 @@ export default function NewProductPage() {
         setSubCategories(data || []);
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const { publicUrl } = await uploadToR2(file, 'products');
+            setImageUrl(publicUrl);
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Failed to upload image');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -94,6 +122,15 @@ export default function NewProductPage() {
                 description: formData.description || null,
                 min_stock_alert: formData.min_stock_alert || 0,
                 sku: formData.sku || null,
+
+                cost_price: formData.cost_price || 0,
+                brand_name: formData.brand_name || null,
+                barcode: formData.barcode || null,
+                manufacturing_date: formData.manufacturing_date || null,
+                expiry_date: formData.expiry_date || null,
+                image_urls: imageUrl ? [imageUrl] : null,
+                variants: variantSize ? [{ size: variantSize }] : null,
+
                 business_id: selectedBusiness.id,
                 shop_id: selectedShop.id,
                 is_active: true,
@@ -129,6 +166,53 @@ export default function NewProductPage() {
             <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 shadow-sm ring-1 ring-gray-900/5 dark:ring-gray-700 sm:rounded-xl p-6 space-y-6">
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100 mb-2">Product Image</label>
+
+                        {imageUrl ? (
+                            <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={imageUrl} alt="Product" className="w-full h-full object-contain" />
+                                <button
+                                    type="button"
+                                    onClick={() => setImageUrl(null)}
+                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex justify-center rounded-lg border border-dashed border-gray-900/25 dark:border-gray-600 px-6 py-10 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <div className="text-center">
+                                    {uploading ? (
+                                        <Loader2 className="mx-auto h-12 w-12 text-gray-300 animate-spin" />
+                                    ) : (
+                                        <ImageIcon className="mx-auto h-12 w-12 text-gray-300" aria-hidden="true" />
+                                    )}
+                                    <div className="mt-4 flex text-sm leading-6 text-gray-600 dark:text-gray-400 justify-center">
+                                        <label
+                                            htmlFor="file-upload"
+                                            className="relative cursor-pointer rounded-md bg-transparent font-semibold text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500"
+                                        >
+                                            <span>Upload a file</span>
+                                            <input
+                                                id="file-upload"
+                                                name="file-upload"
+                                                type="file"
+                                                className="sr-only"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                disabled={uploading}
+                                            />
+                                        </label>
+                                        <p className="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p className="text-xs leading-5 text-gray-600 dark:text-gray-400">PNG, JPG, GIF up to 5MB</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="sm:col-span-2">
                         <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Product Name *</label>
                         <div className="mt-2">
@@ -319,6 +403,100 @@ export default function NewProductPage() {
                                 min="0"
                                 value={formData.min_stock_alert}
                                 onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="cost_price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Cost Price</label>
+                        <div className="mt-2 relative rounded-md shadow-sm">
+                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                <span className="text-gray-500 dark:text-gray-400 sm:text-sm">₹</span>
+                            </div>
+                            <input
+                                type="number"
+                                name="cost_price"
+                                id="cost_price"
+                                min="0"
+                                step="0.01"
+                                value={formData.cost_price || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="sm:col-span-2 border-t border-gray-100 dark:border-gray-700 pt-6 mt-2">
+                        <h3 className="text-base font-semibold leading-7 text-gray-900 dark:text-white mb-4">Additional Details</h3>
+                    </div>
+
+                    <div>
+                        <label htmlFor="brand_name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Brand Name</label>
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                name="brand_name"
+                                id="brand_name"
+                                value={formData.brand_name || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="barcode" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Barcode</label>
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                name="barcode"
+                                id="barcode"
+                                value={formData.barcode || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="manufacturing_date" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Manufacturing Date</label>
+                        <div className="mt-2">
+                            <input
+                                type="date"
+                                name="manufacturing_date"
+                                id="manufacturing_date"
+                                value={formData.manufacturing_date || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="expiry_date" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Expiry Date</label>
+                        <div className="mt-2">
+                            <input
+                                type="date"
+                                name="expiry_date"
+                                id="expiry_date"
+                                value={formData.expiry_date || ''}
+                                onChange={handleChange}
+                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label htmlFor="variant_size" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Size / Variant</label>
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                name="variant_size"
+                                id="variant_size"
+                                value={variantSize}
+                                onChange={(e) => setVariantSize(e.target.value)}
+                                placeholder="e.g. XL, 1kg, Red"
                                 className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                             />
                         </div>

@@ -20,6 +20,7 @@ interface Viewer {
         id: string;
         display_name: string | null;
         display_name_ml: string | null;
+        email: string | null;
         profile_image_url: string | null;
     } | null;
 }
@@ -46,6 +47,7 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                             id,
                             display_name,
                             display_name_ml,
+                            email,
                             profile_image_url
                         )
                     `)
@@ -88,7 +90,7 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                             // Fetch only the new user's profile
                             const { data: userData, error } = await supabase
                                 .from('user_profiles')
-                                .select('id, display_name, display_name_ml, profile_image_url')
+                                .select('id, display_name, display_name_ml, email, profile_image_url')
                                 .eq('id', newView.viewer_id)
                                 .single();
 
@@ -216,7 +218,7 @@ export function StoryDetailModal({ storyId, mediaUrl, onClose, onDelete }: Story
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-foreground truncate">
-                                                {user?.display_name || 'Unknown User'}
+                                                {user?.display_name || user?.email || 'Unknown User'}
                                                 {user?.display_name_ml && <span className="text-xs text-muted-foreground ml-1">({user.display_name_ml})</span>}
                                             </p>
                                             <p className="text-xs text-muted-foreground">

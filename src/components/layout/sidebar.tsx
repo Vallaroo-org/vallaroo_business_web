@@ -124,41 +124,56 @@ export function Sidebar({ mobile = false, onClose }: { mobile?: boolean; onClose
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-6 space-y-6 overflow-y-auto">
-                {navigationGroups.map((group) => (
-                    <div key={group.group}>
-                        <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {t(group.group.toLowerCase()) || group.group}
-                        </h3>
-                        <div className="space-y-1">
-                            {group.items.map((item) => {
-                                const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
-                                return (
-                                    <Link
-                                        key={item.name}
-                                        href={item.href}
-                                        onClick={mobile ? onClose : undefined}
-                                        className={cn(
-                                            "flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
-                                            isActive
-                                                ? "text-primary bg-primary/10"
-                                                : "text-muted-foreground hover:text-primary hover:bg-muted"
-                                        )}
-                                    >
-                                        <div className="flex items-center">
-                                            <item.icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
-                                            {t(item.name)}
-                                        </div>
-                                        {item.name === 'new_orders' && newOrdersCount > 0 && (
-                                            <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
-                                                {newOrdersCount}
-                                            </span>
-                                        )}
-                                    </Link>
-                                );
-                            })}
+                {navigationGroups.map((group) => {
+                    const filteredItems = group.items.filter(item => {
+                        if (item.name === 'catalog') {
+                            return !selectedShop?.shop_type || selectedShop?.shop_type === 'product' || selectedShop?.shop_type === 'both';
+                        }
+                        if (item.name === 'services') {
+                            return selectedShop?.shop_type === 'service' || selectedShop?.shop_type === 'both';
+                        }
+                        return true;
+                    });
+
+                    if (filteredItems.length === 0) return null;
+
+                    return (
+                        <div key={group.group}>
+                            <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                {t(group.group.toLowerCase()) || group.group}
+                            </h3>
+                            <div className="space-y-1">
+                                {filteredItems.map((item) => {
+                                    const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
+                                    return (
+                                        <Link
+                                            key={item.name}
+                                            href={item.href}
+                                            onClick={mobile ? onClose : undefined}
+                                            className={cn(
+                                                "flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group",
+                                                isActive
+                                                    ? "text-primary bg-primary/10"
+                                                    : "text-muted-foreground hover:text-primary hover:bg-muted"
+                                            )}
+                                        >
+                                            <div className="flex items-center">
+                                                <item.icon className={cn("w-5 h-5 mr-3 flex-shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+                                                {t(item.name)}
+                                            </div>
+                                            {/* Badge for new orders */}
+                                            {item.name === 'new_orders' && newOrdersCount > 0 && (
+                                                <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+                                                    {newOrdersCount}
+                                                </span>
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </nav>
 
             {/* Logout */}

@@ -24,26 +24,43 @@ export default function OrderDetailsPage() {
     const [updating, setUpdating] = useState(false);
     const [showBillDialog, setShowBillDialog] = useState(false);
 
+    const [linkedBill, setLinkedBill] = useState<any | null>(null);
+
     useEffect(() => {
-        const fetchOrder = async () => {
+        const fetchOrderAndBill = async () => {
             try {
-                const { data, error } = await supabase
+                // 1. Fetch Order
+                const { data: orderData, error: orderError } = await supabase
                     .from('orders')
-                    .select('*, items:order_items(*)')
+                    .select('*, items:order_items(*, product:products(name))')
                     .eq('id', orderId)
                     .single();
 
-                if (error) throw error;
-                setOrder(data);
+                if (orderError) throw orderError;
+                setOrder(orderData);
+
+                // 2. Fetch Linked Bill (using metadata->>order_id)
+                // Since we store order_id in metadata, we query for it.
+                // Note: Indexing on metadata->>order_id would be good for performance, but fine for now.
+                const { data: billData } = await supabase
+                    .from('bills')
+                    .select('*')
+                    .eq('metadata->>order_id', orderId)
+                    .maybeSingle(); // Use maybeSingle as it might not exist yet
+
+                if (billData) {
+                    setLinkedBill(billData);
+                }
+
             } catch (error) {
-                console.error('Error fetching order:', error);
+                console.error('Error fetching data:', error);
                 toast.error('Order not found');
                 router.push('/orders');
             } finally {
                 setLoading(false);
             }
         };
-        if (orderId) fetchOrder();
+        if (orderId) fetchOrderAndBill();
     }, [orderId, router, supabase]);
 
     const updateStatus = async (newStatus: string) => {
@@ -122,17 +139,17 @@ export default function OrderDetailsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border bg-card">
-                                    {order.items.map((item, idx) => (
+                                    {order.items.map((item: any, idx) => (
                                         <tr key={idx}>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                                                {item.product_name}
-                                                {item.variant_name && <span className="block text-xs text-muted-foreground">{item.variant_name}</span>}
+                                                {item.product?.name || 'Unknown Item'}
+                                                {/* Variant name handling if applicable */}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground text-right">
                                                 {item.quantity}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground text-right">
-                                                {formatCurrency(item.price)}
+                                                {formatCurrency(item.price_at_time || 0)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right">
                                                 {formatCurrency(item.total)}
@@ -182,18 +199,20 @@ export default function OrderDetailsPage() {
                                 </Button>
                             )}
                             {order.status === 'ready' && (
-                                <Button className="w-full" onClick={() => updateStatus('out_for_delivery')} disabled={updating}>
-                                    <Truck className="w-4 h-4 mr-2" /> Out for Delivery
-                                </Button>
-                            )}
-                            {order.status === 'out_for_delivery' && (
                                 <Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={() => setShowBillDialog(true)} disabled={updating}>
                                     <CheckCircle className="w-4 h-4 mr-2" /> Complete & Generate Bill
                                 </Button>
                             )}
-                            {['completed', 'cancelled', 'rejected'].includes(order.status) && (
+                            {order.status === 'completed' && linkedBill && (
+                                <Link href={`/bill-history/${linkedBill.id}/invoice`} className="w-full">
+                                    <Button variant="outline" className="w-full">
+                                        <Package className="w-4 h-4 mr-2" /> View/Print Invoice
+                                    </Button>
+                                </Link>
+                            )}
+                            {['cancelled', 'rejected'].includes(order.status) && (
                                 <div className="text-center text-sm text-muted-foreground">
-                                    No further actions available.
+                                    Order is {order.status}. No actions available.
                                 </div>
                             )}
                         </CardContent>
@@ -232,12 +251,25 @@ export default function OrderDetailsPage() {
                         <CardContent className="space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Method</span>
-                                <span className="font-medium uppercase">{order.payment_method}</span>
+                                <span className="font-medium uppercase">{linkedBill?.payment_method || order.payment_method || 'N/A'}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Status</span>
-                                <span className={`font-medium capitalize ${order.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>{order.payment_status}</span>
+                                <span className={`font-medium capitalize ${(linkedBill?.payment_status || order.payment_status) === 'paid' ? 'text-green-600' :
+                                    (linkedBill?.payment_status || order.payment_status) === 'partial' ? 'text-blue-600' :
+                                        'text-yellow-600'
+                                    }`}>
+                                    {linkedBill?.payment_status || order.payment_status || 'Pending'}
+                                </span>
                             </div>
+                            {linkedBill && linkedBill.payment_status === 'partial' && (
+                                <div className="flex justify-between text-sm mt-1 pt-1 border-t border-border">
+                                    <span className="text-muted-foreground">Balance Due</span>
+                                    <span className="font-medium text-red-600">
+                                        {formatCurrency((linkedBill.total || 0) - (linkedBill.paid_amount || 0))}
+                                    </span>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -245,9 +277,23 @@ export default function OrderDetailsPage() {
             </div>
 
             <GenerateBillDialog
-                order={order as any} // Cast because order.items relation vs OnlineOrderItem might need verifying, but structure matches
+                order={order as any}
                 open={showBillDialog}
-                onOpenChange={setShowBillDialog}
+                onOpenChange={(open) => {
+                    setShowBillDialog(open);
+                    if (!open) {
+                        // Refresh order/bill when dialog closes (in case bill was generated)
+                        const fetchOrder = async () => {
+                            const { data } = await supabase.from('orders').select('*').eq('id', orderId).single();
+                            if (data) {
+                                setOrder(prev => ({ ...prev, ...data }));
+                                // trigger full refresh logic ideally, but this helps status update
+                                window.location.reload();
+                            }
+                        };
+                        fetchOrder();
+                    }
+                }}
             />
         </div>
     );

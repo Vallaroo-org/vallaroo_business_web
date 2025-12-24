@@ -88,6 +88,7 @@ export interface Order {
     payment_status?: 'paid' | 'unpaid' | 'partial';
     status?: string;
     paid_amount?: number;
+    delivery_charge?: number | null;
     transactions?: BillTransaction[];
 }
 
@@ -203,6 +204,7 @@ export interface UserProfile {
     created_at?: string | null;
     updated_at?: string | null;
     deleted_at?: string | null;
+    is_verified?: boolean;
 }
 
 export interface Subscription {
@@ -243,6 +245,7 @@ export interface OnlineOrderItem {
 export interface OnlineOrder {
     id: string;
     shop_id: string;
+    user_id?: string | null;
     customer_id?: string | null;
     customer_name: string;
     customer_phone: string;

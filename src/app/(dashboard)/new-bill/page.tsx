@@ -13,6 +13,7 @@ import { Search, Plus, Trash2, ShoppingCart, User, Save, Loader2, ArrowLeft, Min
 import Link from 'next/link';
 import AddCustomerDialog from '@/components/pos/add-customer-dialog';
 import BillSuccessDialog from '@/components/pos/bill-success-dialog';
+import { toast } from 'sonner';
 
 interface CartItem {
     product_id: string;
@@ -22,10 +23,15 @@ interface CartItem {
     name_ml?: string;
 }
 
-export default function NewBillPage() {
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+function NewBillContent() {
     const router = useRouter();
     const { selectedBusiness, selectedShop, isLoading: contextLoading } = useBusiness();
     const supabase = createClient();
+    const searchParams = useSearchParams();
+    const editId = searchParams.get('edit');
 
     // Data State
     const [products, setProducts] = useState<Product[]>([]);
@@ -46,12 +52,80 @@ export default function NewBillPage() {
 
     // Submission State
     const [submitting, setSubmitting] = useState(false);
+    const [loadingBill, setLoadingBill] = useState(false);
 
     useEffect(() => {
         if (!contextLoading && selectedBusiness && selectedShop) {
             fetchInitialData();
         }
     }, [contextLoading, selectedBusiness, selectedShop]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Fetch existing bill if in edit mode
+    useEffect(() => {
+        if (editId && selectedShop && products.length > 0) {
+            fetchBillToEdit(editId);
+        }
+    }, [editId, selectedShop, products]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
+    const fetchBillToEdit = async (id: string) => {
+        try {
+            setLoadingBill(true);
+            const { data: bill, error } = await supabase
+                .from('bills')
+                .select('*, items:bill_items(*)')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+            if (!bill) return;
+
+            // Populate state
+            if (bill.customer_name && bill.customer_name !== 'Walking Customer') {
+                // Try to find existing customer object or create temp one
+                const existing = customers.find(c => c.name === bill.customer_name && c.phone_number === bill.customer_phone);
+                if (existing) {
+                    setSelectedCustomer(existing);
+                } else {
+                    setSelectedCustomer({
+                        id: 'temp',
+                        name: bill.customer_name,
+                        phone_number: bill.customer_phone,
+                        business_id: bill.business_id
+                    } as Customer);
+                }
+            }
+
+            setDiscount(bill.discount || 0);
+            setPaymentStatus(bill.payment_status || 'unpaid');
+            setPaidAmount(bill.paid_amount?.toString() || '0');
+
+            // Populate cart
+            // Need full product details. Map from loaded products.
+            const recreatedCart: CartItem[] = bill.items.map((item: any) => {
+                const product = products.find(p => p.id === item.product_id);
+                if (product) {
+                    return {
+                        product_id: product.id,
+                        product: product,
+                        quantity: item.quantity,
+                        price: item.price, // Use price from bill, or current price? Usually price at time of sale.
+                        name_ml: item.name_ml
+                    };
+                }
+                // Fallback for deleted products?
+                return null;
+            }).filter(Boolean);
+
+            setCart(recreatedCart);
+
+        } catch (error) {
+            console.error('Error fetching bill to edit:', error);
+            toast.error('Failed to load bill details');
+        } finally {
+            setLoadingBill(false);
+        }
+    };
 
     const fetchInitialData = async () => {
         try {
@@ -141,7 +215,10 @@ export default function NewBillPage() {
     const subTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const totalPayable = Math.max(0, subTotal - discount);
 
-    // Update paid amount when status updates or total changes
+    // Update paid amount when status updates or total changes - ONLY if NOT editing or user changed status
+    // Complex: If editing, we want to respect loaded values unless user changes things.
+    // For simplicity: If totalPayable changes, providing smart defaults is good, but overwriting user input is bad.
+    // Let's rely on manual user change for status, but auto-update 'Paid' amount if total changes.
     useEffect(() => {
         if (paymentStatus === 'paid') {
             setPaidAmount(totalPayable.toString());
@@ -170,36 +247,85 @@ export default function NewBillPage() {
                 finalPaidAmount = 0;
             }
 
-            // 1. Create Bill
             const now = new Date();
-            const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-            const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-            const billNumber = `${dateStr}-${timeStr}`;
+            const billData = {
+                business_id: selectedBusiness!.id,
+                shop_id: selectedShop.id,
+                customer_name: selectedCustomer?.name || 'Walking Customer',
+                customer_phone: selectedCustomer?.phone_number,
+                total: totalPayable,
+                subtotal: subTotal,
+                discount: discount,
+                payment_status: paymentStatus,
+                paid_amount: finalPaidAmount
+            };
 
-            const { data: bill, error: billError } = await supabase
-                .from('bills')
-                .insert({
-                    business_id: selectedBusiness!.id,
-                    shop_id: selectedShop.id,
-                    bill_number: billNumber,
-                    customer_name: selectedCustomer?.name || 'Walking Customer',
-                    customer_phone: selectedCustomer?.phone_number,
-                    items: cart,
-                    total: totalPayable,
-                    subtotal: subTotal,
-                    discount: discount,
-                    issued_at: now.toISOString(),
-                    payment_status: paymentStatus,
-                    paid_amount: finalPaidAmount
-                })
-                .select()
-                .single();
+            let targetBillId = editId;
 
-            if (billError) throw billError;
+            if (editId) {
+                // UPDATE
+                const { error: updateError } = await supabase
+                    .from('bills')
+                    .update(billData)
+                    .eq('id', editId);
 
-            // 2. Create Bill Items
+                if (updateError) throw updateError;
+
+                // Delete existing items
+                const { error: deleteItemsError } = await supabase
+                    .from('bill_items')
+                    .delete()
+                    .eq('bill_id', editId);
+
+                if (deleteItemsError) throw deleteItemsError;
+
+                // We do NOT creating initial transaction again for editing.
+                // If the user wants to add payment, they should use Add Payment feature.
+                // However, update the 'paid_amount' column is fine. 
+
+            } else {
+                // INSERT
+                const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+                const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
+                const billNumber = `${dateStr}-${timeStr}`;
+
+                const { data: bill, error: billError } = await supabase
+                    .from('bills')
+                    .insert({
+                        ...billData,
+                        bill_number: billNumber,
+                        issued_at: now.toISOString(),
+                        items: cart, // Storing JSON snapshot too? The schema suggests 'items' column exists.
+                    })
+                    .select()
+                    .single();
+
+                if (billError) throw billError;
+                targetBillId = bill.id;
+
+                // 3. Create Transaction for Initial Payment (if any)
+                if (finalPaidAmount > 0) {
+                    const { error: transactionError } = await supabase
+                        .from('bill_transactions')
+                        .insert({
+                            id: crypto.randomUUID(),
+                            bill_id: targetBillId,
+                            amount: finalPaidAmount,
+                            payment_method: 'cash',
+                            recorded_at: now.toISOString(),
+                            note: 'Initial payment',
+                            recorded_by: (await supabase.auth.getUser()).data.user?.id,
+                            business_id: selectedBusiness!.id,
+                            shop_id: selectedShop.id,
+                        });
+
+                    if (transactionError) throw transactionError;
+                }
+            }
+
+            // 2. Create Bill Items (for both insert and update)
             const billItems = cart.map(item => ({
-                bill_id: bill.id,
+                bill_id: targetBillId,
                 business_id: selectedBusiness!.id,
                 shop_id: selectedShop.id,
                 product_id: item.product_id,
@@ -215,26 +341,8 @@ export default function NewBillPage() {
 
             if (itemsError) throw itemsError;
 
-            // 3. Create Transaction for Initial Payment (if any)
-            if (finalPaidAmount > 0) {
-                const { error: transactionError } = await supabase
-                    .from('bill_transactions')
-                    .insert({
-                        id: crypto.randomUUID(),
-                        bill_id: bill.id,
-                        amount: finalPaidAmount,
-                        payment_method: 'cash', // Defaulting to cash for POS, or could add selector
-                        recorded_at: now.toISOString(),
-                        note: 'Initial payment',
-                        recorded_by: (await supabase.auth.getUser()).data.user?.id,
-                        business_id: selectedBusiness!.id,
-                        shop_id: selectedShop.id,
-                    });
-
-                if (transactionError) throw transactionError;
-            }
-
-            router.push(`/bill-history/${bill.id}`);
+            toast.success(editId ? 'Bill updated successfully' : 'Bill created successfully');
+            router.push(`/bill-history/${targetBillId}`);
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Checkout failed details:', JSON.stringify(error, null, 2));
@@ -272,7 +380,10 @@ export default function NewBillPage() {
                                 </Button>
                             </Link>
                             <div>
-                                <h1 className="text-2xl font-bold tracking-tight text-foreground">New Sale</h1>
+                                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                                    {editId ? 'Edit Bill' : 'New Sale'}
+                                    {loadingBill && <Loader2 className="ml-2 w-4 h-4 inline animate-spin" />}
+                                </h1>
                                 <p className="text-xs text-muted-foreground">{selectedShop?.name}</p>
                             </div>
                         </div>
@@ -555,22 +666,21 @@ export default function NewBillPage() {
                         ) : (
                             <>
                                 <CreditCard className="w-5 h-5 mr-2" />
-                                Please Checkout
+                                {editId ? 'Update Bill' : 'Please Checkout'}
                             </>
                         )}
                     </Button>
                 </div>
             </div>
 
-            {/* Mobile Cart Floating Action Button (if needed for responsive, though design targets desktop first) */}
+            {/* Mobile Cart Floating Action Button */}
             {cart.length > 0 && (
                 <div className="lg:hidden fixed bottom-6 right-6 z-50">
                     <Button
                         size="lg"
                         className="rounded-full h-14 w-14 shadow-2xl shadow-primary/40 p-0 flex items-center justify-center relative"
                         onClick={() => {
-                            // Simple responsive handling: could toggle a drawer, for now sticking to the basics or alerting
-                            alert("Mobile layouts would typically open a drawer here. For now, please use desktop for full POS experience.");
+                            alert("Please use desktop for full feature set.");
                         }}
                     >
                         <ShoppingCaret className="w-6 h-6" />
@@ -581,6 +691,18 @@ export default function NewBillPage() {
                 </div>
             )}
         </div>
+    );
+}
+
+export default function NewBillPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex h-screen items-center justify-center">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            </div>
+        }>
+            <NewBillContent />
+        </Suspense>
     );
 }
 

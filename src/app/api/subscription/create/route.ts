@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { razorpay } from '@/lib/razorpay';
-import { PLANS } from '@/lib/plans';
 
 export async function POST(req: Request) {
     try {
@@ -13,13 +12,24 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { planKey } = body; // 'basic', 'pro', 'enterprise'
+        const { planId } = body;
 
-        if (!planKey || !PLANS[planKey]) {
+        if (!planId) {
+            return NextResponse.json({ error: 'Plan ID is required' }, { status: 400 });
+        }
+
+        // Fetch Plan from DB
+        const { data: selectedPlan, error: planError } = await supabase
+            .from('plans')
+            .select('*')
+            .eq('id', planId)
+            .single();
+
+        if (planError || !selectedPlan) {
+            console.error('Plan fetch error:', planError);
             return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
         }
 
-        const selectedPlan = PLANS[planKey];
         if (selectedPlan.price === 0) {
             return NextResponse.json({ error: 'Cannot create subscription for free plan' }, { status: 400 });
         }
@@ -33,35 +43,40 @@ export async function POST(req: Request) {
             .single();
 
         if (existingSub) {
-            // Logic to upgrade/downgrade could go here, but for now blocking new creation
-            // return NextResponse.json({ error: 'User already has an active subscription' }, { status: 400 });
-            // Actually, if it's 'created' (pending), we might want to return the existing one or cancel it.
-            // For simplicity, let's allow creating a new one and client handles the flow.
+            // Logic to upgrade/downgrade could go here
         }
 
         // Create subscription on Razorpay
-        // We need the Razorpay Plan ID. Since we don't have it yet (waiting for setup),
-        // I will assume PLANS[planKey].id will hold the valid Razorpay Plan ID.
-        // I need to update PLANS in src/lib/plans.ts with real IDs after running setup.
+        // Use the ID from the DB as the plan_id if it's a razorpay ID (starts with plan_)
+        // If not, we might have an issue. Assuming ID stored in DB IS the Razorpay Plan ID.
+        // Or if we treat 'id' as internal UUID, we need 'razorpay_plan_id' column. 
+        // Based on previous checks, DB 'id' was 'free'. 
+        // For paid plans, we expect IDs like 'plan_...' to be stored in the 'id' column or another column.
+        // If the 'id' column holds UUIDs, we are in trouble. 
+        // BUT, looking at plans.ts, 'id' was used for Razorpay ID.
+        // Since we are moving to DB-driven, we assume the DB 'id' column for paid plans will hold the Razorpay Plan ID string.
+
+        if (!selectedPlan.razorpay_plan_id) {
+            return NextResponse.json({ error: 'Configuration Error: Missing Razorpay Plan ID' }, { status: 500 });
+        }
 
         const subscriptionOptions = {
-            plan_id: selectedPlan.id,
+            plan_id: selectedPlan.razorpay_plan_id,
             customer_notify: 1 as 0 | 1,
             total_count: 120, // 10 years monthly
             quantity: 1,
             notes: {
                 user_id: user.id,
-                plan_key: planKey
+                plan_key: planId // confusing naming, keeping for legacy compat or renaming to plan_id
             }
         };
 
         const subscription: any = await razorpay.subscriptions.create(subscriptionOptions);
 
         // Store in DB
-        // Store in DB (Upsert)
         const { error: dbError } = await supabase.from('subscriptions').upsert({
             user_id: user.id,
-            plan_id: planKey,
+            plan_id: planId,
             razorpay_subscription_id: subscription.id,
             status: 'created',
             created_at: new Date().toISOString(),

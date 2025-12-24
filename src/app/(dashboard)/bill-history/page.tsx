@@ -4,13 +4,28 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Order } from '@/lib/types';
 import Link from 'next/link';
-import { Search, ChevronRight, Plus } from 'lucide-react';
+import {
+    Search,
+    ChevronRight,
+    Plus,
+    MoreVertical,
+    Eye,
+    Trash2,
+    Share2,
+    MessageCircle,
+    Edit
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
+import {
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from 'sonner';
 
 import { useBusiness } from '@/hooks/use-business';
+import BillActionsMenu from '@/components/dashboard/bill-actions-menu';
 
 export default function BillHistoryPage() {
     const [orders, setOrders] = useState<Order[]>([]);
@@ -79,6 +94,57 @@ export default function BillHistoryPage() {
         setSortConfig({ key, direction });
     };
 
+    const handleDelete = async (e: React.MouseEvent, billId: string) => {
+        e.stopPropagation(); // Prevent row click
+        if (!window.confirm('Are you sure you want to delete this bill? This action cannot be undone.')) return;
+
+        try {
+            const { error } = await supabase.from('bills').delete().eq('id', billId);
+            if (error) throw error;
+
+            toast.success('Bill deleted successfully');
+            setOrders(prev => prev.filter(o => o.id !== billId));
+        } catch (error) {
+            console.error('Error deleting bill:', error);
+            toast.error('Failed to delete bill');
+        }
+    };
+
+    const handleShare = async (e: React.MouseEvent, order: Order) => {
+        e.stopPropagation();
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Invoice #${order.bill_number}`,
+                    text: `Invoice from ${selectedShop?.name || 'Vallaroo'}`,
+                    url: `${window.location.origin}/bill-history/${order.id}/invoice`,
+                });
+            } catch (error: any) {
+                if (error.name !== 'AbortError') console.error('Share failed:', error);
+            }
+        } else {
+            // Fallback: Copy to clipboard
+            navigator.clipboard.writeText(`${window.location.origin}/bill-history/${order.id}/invoice`);
+            toast.success('Invoice URL copied to clipboard');
+        }
+    };
+
+    const handleSayHi = (e: React.MouseEvent, order: Order) => {
+        e.stopPropagation();
+        if (!order.customer_phone) {
+            toast.error('No phone number available for this customer');
+            return;
+        }
+
+        // Basic formatting for Indian numbers
+        let phone = order.customer_phone.replace(/[^0-9]/g, '');
+        if (phone.length === 10) phone = '91' + phone;
+
+        const customerName = order.customer_name || 'Customer';
+        const text = encodeURIComponent(`Hi ${customerName}, here is your invoice for bill #${order.bill_number}: ${window.location.origin}/bill-history/${order.id}/invoice`);
+        window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    };
+
     const isLoading = contextLoading || (dataLoading && offset === 0);
     const isLoadingMore = dataLoading && offset > 0;
 
@@ -144,7 +210,7 @@ export default function BillHistoryPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col">
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto min-h-[400px]">
                                 <table className="min-w-full divide-y divide-border">
                                     <thead className="bg-muted/50">
                                         <tr>
@@ -212,10 +278,12 @@ export default function BillHistoryPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                                                     {formatCurrency(order.total)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <Link href={`/bill-history/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300">
-                                                        <ChevronRight className="w-5 h-5" />
-                                                    </Link>
+                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                                    <BillActionsMenu
+                                                        bill={order}
+                                                        currentBusinessName={selectedShop?.name}
+                                                        onDeleteSuccess={() => setOrders(prev => prev.filter(o => o.id !== order.id))}
+                                                    />
                                                 </td>
                                             </tr>
                                         ))}

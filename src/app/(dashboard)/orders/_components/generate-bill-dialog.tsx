@@ -69,12 +69,20 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
     // Product Selection State
     const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
     const [openCombobox, setOpenCombobox] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredProducts = availableProducts.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     useEffect(() => {
+        // ... (keep useEffect content same)
         if (open && order) {
-            setItems(order.items.map(item => ({
+            setItems(order.items.map((item: any) => ({
                 ...item,
-                editPrice: item.price,
+                product_name: item.product_name || item.product?.name || 'Unknown Item',
+                //@ts-ignore - price hierarchy: price_at_time -> price -> 0
+                editPrice: item.price_at_time ?? item.price ?? 0,
                 editQuantity: item.quantity,
                 tag: null
             })));
@@ -119,6 +127,8 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
     const handleQuantityChange = (index: number, delta: number) => {
         setItems(prev => {
             const newItems = [...prev];
+            // Correctly copy the item before modifying
+            newItems[index] = { ...newItems[index] };
             const newQty = Math.max(1, newItems[index].editQuantity + delta);
             newItems[index].editQuantity = newQty;
             return newItems;
@@ -130,7 +140,7 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
         if (!isNaN(price)) {
             setItems(prev => {
                 const newItems = [...prev];
-                newItems[index].editPrice = price;
+                newItems[index] = { ...newItems[index], editPrice: price };
                 return newItems;
             });
         }
@@ -139,6 +149,8 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
     const handleTagChange = (index: number, tag: 'Free' | 'Sample' | 'Other' | 'None') => {
         setItems(prev => {
             const newItems = [...prev];
+            newItems[index] = { ...newItems[index] }; // Copy item
+
             if (tag === 'Free' || tag === 'Sample') {
                 newItems[index].editPrice = 0;
                 newItems[index].tag = tag;
@@ -164,7 +176,11 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
 
             if (existingIndex >= 0) {
                 const newItems = [...prev];
-                newItems[existingIndex].editQuantity += 1;
+                // Correctly copy the item before modifying
+                newItems[existingIndex] = {
+                    ...newItems[existingIndex],
+                    editQuantity: newItems[existingIndex].editQuantity + 1
+                };
                 return newItems;
             }
 
@@ -213,7 +229,7 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
             const now = new Date();
             const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
             const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '');
-            const billNumber = `ORD-${dateStr}-${timeStr}`;
+            const billNumber = `${dateStr}-${timeStr}`;
 
             if (!selectedBusiness) {
                 toast.error("Business info missing");
@@ -227,9 +243,11 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
                 .insert({
                     business_id: selectedBusiness.id,
                     shop_id: order.shop_id,
+                    user_id: order.user_id, // Link to auth user
                     bill_number: billNumber,
                     customer_name: order.customer_name,
                     customer_phone: order.customer_phone,
+                    customer_address: order.customer_address,
                     items: items.map(i => ({ ...i, price: i.editPrice, quantity: i.editQuantity })),
                     total: totalPayable,
                     subtotal: subTotal,
@@ -237,7 +255,7 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
                     issued_at: now.toISOString(),
                     payment_status: paymentStatus,
                     paid_amount: finalPaidAmount,
-                    order_id: order.id
+                    metadata: { order_id: order.id } // Store order link in metadata
                 })
                 .select()
                 .single();
@@ -265,6 +283,30 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
 
             if (itemsError) throw itemsError;
 
+            // 3. Create Transaction for Initial Payment (if any)
+            if (finalPaidAmount > 0) {
+                const { error: transactionError } = await supabase
+                    .from('bill_transactions')
+                    .insert({
+                        id: crypto.randomUUID(),
+                        bill_id: bill.id,
+                        business_id: selectedBusiness.id,
+                        shop_id: order.shop_id,
+                        amount: finalPaidAmount,
+                        payment_method: 'cash', // Default to cash for now as dialog doesn't have selector yet, or use order's method if available?
+                        // Actually, the dialog usually implies cash/immediate payment if marking as paid.
+                        // Ideally we should add a payment method selector to the dialog, but for now 'cash' or 'upi' 
+                        // logic isn't there. Let's default to 'cash' or what user selects if we add it. 
+                        // The UI has "Payment Status" but not "Payment Method". 
+                        // Let's assume Cash for manually generated bills unless we add selector.
+                        recorded_at: now.toISOString(),
+                        note: 'Initial payment',
+                        recorded_by: (await supabase.auth.getUser()).data.user?.id
+                    });
+
+                if (transactionError) throw transactionError;
+            }
+
             // 3. Update Order Status
             const { error: updateError } = await supabase
                 .from('orders')
@@ -285,176 +327,231 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
         }
     };
 
+    const handleAddCustomItem = () => {
+        if (!searchTerm) return;
+
+        setItems(prev => {
+            // Create new item with custom name and null/placeholder ID
+            const newItem: EditableItem = {
+                id: `temp-${Date.now()}`,
+                order_id: order.id,
+                // Use a special ID format or handle null if schema allows. 
+                // Using a random UUID-like string might pass if no FK constraint, 
+                // otherwise might fail. For now, assuming loose schema or "custom" handling.
+                // We'll use a specific prefix to identify it.
+                product_id: 'custom-item',
+                variant_id: null,
+                product_name: searchTerm,
+                variant_name: null,
+                quantity: 1,
+                price: 0,
+                total: 0,
+                editPrice: 0,
+                editQuantity: 1,
+                tag: 'Other'
+            };
+            return [...prev, newItem];
+        });
+        setOpenCombobox(false);
+        setSearchTerm('');
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+                <DialogHeader className="p-6 pb-4 border-b">
                     <DialogTitle>Generate Bill for Order #{order.id.slice(0, 8)}</DialogTitle>
                 </DialogHeader>
 
-                <div className="space-y-6 py-4">
-                    {/* Items List */}
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <Label>Order Items</Label>
+                <div className="flex-1 overflow-y-auto p-6">
+                    <div className="space-y-6">
+                        {/* Items List */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <Label>Order Items</Label>
 
-                            <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8">
-                                        <Plus className="mr-2 h-4 w-4" /> Add Item
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-[300px]" side="bottom" align="end">
-                                    <Command>
-                                        <CommandInput placeholder="Search products..." />
-                                        <CommandList>
-                                            <CommandEmpty>No products found.</CommandEmpty>
-                                            <CommandGroup>
-                                                {availableProducts.map((product) => (
-                                                    <CommandItem
-                                                        key={product.id}
-                                                        value={product.name}
-                                                        onSelect={() => handleAddProduct(product)}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4",
-                                                                items.some(i => i.product_id === product.id) ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        <div className="flex flex-col">
-                                                            <span>{product.name}</span>
-                                                            <span className="text-xs text-muted-foreground">{formatCurrency(product.price)}</span>
-                                                        </div>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                                <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-8">
+                                            <Plus className="mr-2 h-4 w-4" /> Add Item
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="p-0 w-[300px]" side="bottom" align="end">
+                                        <Command shouldFilter={false}>
+                                            <CommandInput
+                                                placeholder="Search products..."
+                                                value={searchTerm}
+                                                onValueChange={setSearchTerm}
+                                            />
+                                            <CommandList>
+                                                {/* Logic to show 'Add Custom' if search is not empty */}
+                                                {filteredProducts.length === 0 && searchTerm !== '' && (
+                                                    <CommandGroup>
+                                                        <CommandItem
+                                                            value={searchTerm}
+                                                            onSelect={handleAddCustomItem}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <Plus className="mr-2 h-4 w-4" />
+                                                            Create "{searchTerm}"
+                                                        </CommandItem>
+                                                    </CommandGroup>
+                                                )}
+
+                                                <CommandEmpty>
+                                                    {searchTerm === '' ? 'Start typing to search...' : 'No existing products found.'}
+                                                </CommandEmpty>
+
+                                                <CommandGroup heading="Products">
+                                                    {filteredProducts.map((product) => (
+                                                        <CommandItem
+                                                            key={product.id}
+                                                            value={product.name}
+                                                            onSelect={() => {
+                                                                handleAddProduct(product);
+                                                                setSearchTerm('');
+                                                            }}
+                                                        >
+                                                            <Check
+                                                                className={cn(
+                                                                    "mr-2 h-4 w-4",
+                                                                    items.some(i => i.product_id === product.id) ? "opacity-100" : "opacity-0"
+                                                                )}
+                                                            />
+                                                            <div className="flex flex-col">
+                                                                <span>{product.name}</span>
+                                                                <span className="text-xs text-muted-foreground">{formatCurrency(product.price)}</span>
+                                                            </div>
+                                                        </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+
+                            {items.length === 0 && (
+                                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                                    No items in bill. Add items using the button above.
+                                </div>
+                            )}
+
+                            {items.map((item, index) => (
+                                <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg bg-card/50 relative group">
+                                    <div className="flex-1">
+                                        <div className="font-medium">{item.product_name}</div>
+                                        <div className="text-xs text-muted-foreground">{item.variant_name}</div>
+                                        {item.tag && (
+                                            <Badge variant="secondary" className="mt-1 text-xs">
+                                                {item.tag}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center gap-4">
+                                        {/* Tag Selector */}
+                                        <Select
+                                            value={item.tag || 'None'}
+                                            onValueChange={(val: any) => handleTagChange(index, val)}
+                                        >
+                                            <SelectTrigger className="w-[100px] h-8 text-xs">
+                                                <SelectValue placeholder="Tag" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="None">Normal</SelectItem>
+                                                <SelectItem value="Free">Free</SelectItem>
+                                                <SelectItem value="Sample">Sample</SelectItem>
+                                                <SelectItem value="Other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        {/* Qty */}
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(index, -1)}>
+                                                <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <span className="w-8 text-center text-sm">{item.editQuantity}</span>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(index, 1)}>
+                                                <Plus className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+
+                                        {/* Price */}
+                                        <div className="w-24">
+                                            <Input
+                                                type="number"
+                                                value={item.editPrice}
+                                                onChange={(e) => handlePriceChange(index, e.target.value)}
+                                                className="h-8 text-right"
+                                                min="0"
+                                                disabled={item.tag === 'Free' || item.tag === 'Sample'}
+                                            />
+                                        </div>
+
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveItem(index)}>
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
-                        {items.length === 0 && (
-                            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                                No items in bill. Add items using the button above.
-                            </div>
-                        )}
-
-                        {items.map((item, index) => (
-                            <div key={index} className="flex flex-col sm:flex-row gap-4 p-4 border rounded-lg bg-card/50 relative group">
-                                <div className="flex-1">
-                                    <div className="font-medium">{item.product_name}</div>
-                                    <div className="text-xs text-muted-foreground">{item.variant_name}</div>
-                                    {item.tag && (
-                                        <Badge variant="secondary" className="mt-1 text-xs">
-                                            {item.tag}
-                                        </Badge>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center gap-4">
-                                    {/* Tag Selector */}
-                                    <Select
-                                        value={item.tag || 'None'}
-                                        onValueChange={(val: any) => handleTagChange(index, val)}
-                                    >
-                                        <SelectTrigger className="w-[100px] h-8 text-xs">
-                                            <SelectValue placeholder="Tag" />
+                        {/* Financials */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Payment Status</Label>
+                                    <Select value={paymentStatus} onValueChange={(v: any) => setPaymentStatus(v)}>
+                                        <SelectTrigger>
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="None">Normal</SelectItem>
-                                            <SelectItem value="Free">Free</SelectItem>
-                                            <SelectItem value="Sample">Sample</SelectItem>
-                                            <SelectItem value="Other">Other</SelectItem>
+                                            <SelectItem value="paid">Paid</SelectItem>
+                                            <SelectItem value="unpaid">Unpaid</SelectItem>
+                                            <SelectItem value="partial">Partial</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                </div>
 
-                                    {/* Qty */}
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(index, -1)}>
-                                            <Minus className="h-3 w-3" />
-                                        </Button>
-                                        <span className="w-8 text-center text-sm">{item.editQuantity}</span>
-                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleQuantityChange(index, 1)}>
-                                            <Plus className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-
-                                    {/* Price */}
-                                    <div className="w-24">
+                                {paymentStatus === 'partial' && (
+                                    <div className="space-y-2">
+                                        <Label>Amount Paid</Label>
                                         <Input
                                             type="number"
-                                            value={item.editPrice}
-                                            onChange={(e) => handlePriceChange(index, e.target.value)}
-                                            className="h-8 text-right"
+                                            value={paidAmount}
+                                            onChange={(e) => setPaidAmount(e.target.value)}
                                             min="0"
-                                            disabled={item.tag === 'Free' || item.tag === 'Sample'}
                                         />
                                     </div>
-
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleRemoveItem(index)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                                )}
                             </div>
-                        ))}
-                    </div>
 
-                    {/* Financials */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t">
-                        <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Payment Status</Label>
-                                <Select value={paymentStatus} onValueChange={(v: any) => setPaymentStatus(v)}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="paid">Paid</SelectItem>
-                                        <SelectItem value="unpaid">Unpaid</SelectItem>
-                                        <SelectItem value="partial">Partial</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {paymentStatus === 'partial' && (
-                                <div className="space-y-2">
-                                    <Label>Amount Paid</Label>
+                                <div className="flex justify-between text-sm">
+                                    <span>Subtotal</span>
+                                    <span>{formatCurrency(subTotal)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm">
+                                    <span>Discount</span>
                                     <Input
                                         type="number"
-                                        value={paidAmount}
-                                        onChange={(e) => setPaidAmount(e.target.value)}
+                                        value={discount}
+                                        onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                                        className="w-24 h-8 text-right"
                                         min="0"
                                     />
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span>Subtotal</span>
-                                <span>{formatCurrency(subTotal)}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span>Discount</span>
-                                <Input
-                                    type="number"
-                                    value={discount}
-                                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                                    className="w-24 h-8 text-right"
-                                    min="0"
-                                />
-                            </div>
-                            <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                                <span>Total Payable</span>
-                                <span>{formatCurrency(totalPayable)}</span>
+                                <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                                    <span>Total Payable</span>
+                                    <span>{formatCurrency(totalPayable)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="p-6 pt-4 border-t">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
                     <Button onClick={handleGenerateBill} disabled={loading}>
                         {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

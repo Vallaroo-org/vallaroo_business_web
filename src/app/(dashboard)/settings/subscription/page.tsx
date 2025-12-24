@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { PLANS } from '@/lib/plans';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check } from 'lucide-react';
 import Script from 'next/script';
 
 export default function SubscriptionPage() {
+    const [plans, setPlans] = useState<any[]>([]);
     const [currentPlan, setCurrentPlan] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -16,47 +16,60 @@ export default function SubscriptionPage() {
     const supabase = createClient();
 
     useEffect(() => {
-        fetchSubscription();
+        fetchSubscriptionAndPlans();
     }, []);
 
-    const fetchSubscription = async () => {
+    const fetchSubscriptionAndPlans = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
+            // Fetch Plans
+            const { data: plansData } = await supabase
+                .from('plans')
+                .select('*')
+                .order('price', { ascending: true });
+
+            setPlans(plansData || []);
+
+            // Fetch active subscription
             const { data: sub } = await supabase
                 .from('subscriptions')
                 .select('*')
                 .eq('user_id', user.id)
-                .in('status', ['active', 'authenticated']) // Only fetch valid, paid subscriptions
-                .order('created_at', { ascending: false }) // Get latest
+                .in('status', ['active', 'authenticated'])
+                .order('created_at', { ascending: false })
                 .limit(1)
                 .single();
 
             setSubscription(sub);
 
-            if (sub && PLANS[sub.plan_id]) {
-                setCurrentPlan(PLANS[sub.plan_id]);
+            // Determine current plan details
+            if (sub) {
+                // If user has a subscription, current plan is the one from DB matching sub.plan_id
+                const activePlan = plansData?.find(p => p.id === sub.plan_id);
+                setCurrentPlan(activePlan || null);
             } else {
-                setCurrentPlan(PLANS.free);
+                // Default to Free plan if exists
+                const freePlan = plansData?.find(p => p.price === 0 || p.id === 'free');
+                setCurrentPlan(freePlan || { name: 'Free Plan', features: { max_businesses: 1 } });
             }
         } catch (error) {
-            console.error('Error fetching subscription:', error);
-            setCurrentPlan(PLANS.free);
+            console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleUpgrade = async (planKey: string) => {
+    const handleUpgrade = async (planId: string) => {
         if (processingPlan) return;
-        setProcessingPlan(planKey);
+        setProcessingPlan(planId);
 
         try {
             const response = await fetch('/api/subscription/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ planKey })
+                body: JSON.stringify({ planId })
             });
 
             const data = await response.json();
@@ -71,7 +84,7 @@ export default function SubscriptionPage() {
                 key: data.key,
                 subscription_id: data.subscription_id,
                 name: 'Vallaroo Business',
-                description: `Upgrade to ${PLANS[planKey].name}`,
+                description: `Upgrade Subscription`,
                 handler: async function (response: any) {
                     try {
                         const verifyResponse = await fetch('/api/subscription/verify', {
@@ -88,7 +101,7 @@ export default function SubscriptionPage() {
 
                         if (verifyData.success) {
                             alert('Subscription Successful!');
-                            await fetchSubscription(); // Refresh state
+                            await fetchSubscriptionAndPlans(); // Refresh state
                         } else {
                             alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
                         }
@@ -123,7 +136,10 @@ export default function SubscriptionPage() {
         return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
     }
 
-    const plans = [PLANS.basic, PLANS.pro, PLANS.enterprise];
+    // Filter out free plan from upgrade options usually, or maybe keep it if downgrading is allowed? 
+    // Typically upgrade screen shows paid plans. 
+    // Assuming 'plans' contains everything.
+
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-10">
@@ -146,16 +162,29 @@ export default function SubscriptionPage() {
                     </span>
                 </div>
                 <div className="px-6 py-5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Plan</p>
                             <p className="mt-1 text-xl font-semibold text-foreground">{currentPlan?.name || 'Free Plan'}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-sm font-medium text-muted-foreground">Usage</p>
-                            <ul className="text-sm mt-1 text-foreground">
-                                <li>Max Businesses: {currentPlan?.features.max_businesses}</li>
-                                <li>Max Shops/Business: {currentPlan?.features.max_shops_per_business}</li>
+                            <p className="text-sm font-medium text-muted-foreground">Usage & Features</p>
+                            <ul className="text-sm mt-1 text-foreground space-y-1">
+                                {currentPlan?.features?.benefits?.length > 0 ? (
+                                    currentPlan.features.benefits.map((benefit: string, idx: number) => (
+                                        <li key={idx}>
+                                            <span className="flex items-center justify-end">
+                                                {benefit}
+                                                <Check className="w-3.5 h-3.5 text-green-500 ml-2" />
+                                            </span>
+                                        </li>
+                                    ))
+                                ) : (
+                                    <>
+                                        <li>Max Businesses: {currentPlan?.features?.max_businesses ?? 1}</li>
+                                        <li>Max Shops/Business: {currentPlan?.features?.max_shops_per_business ?? 1}</li>
+                                    </>
+                                )}
                             </ul>
                         </div>
                     </div>
@@ -166,77 +195,100 @@ export default function SubscriptionPage() {
             <div>
                 <h3 className="text-xl font-bold text-foreground mb-4">Available Plans</h3>
 
-                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-lg text-sm border border-blue-200 dark:border-blue-800">
-                    <p className="font-semibold mb-1">Payment Method Note:</p>
-                    <p>
-                        Subscriptions are recurring plans. You need to use a payment method that supports <strong>auto-debit</strong> (e.g., Credit Cards, UPI Autopay).
-                        In <strong>Test Mode</strong>, use Test Cards or enter <code>success@razorpay</code> for UPI.
-                    </p>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {plans.map((plan) => (
-                        <div key={plan.id} className="border border-border rounded-lg p-6 bg-card flex flex-col hover:border-primary transition-colors">
-                            <h4 className="text-lg font-semibold text-foreground">{plan.name}</h4>
-                            <div className="mt-2 text-3xl font-bold text-foreground">
-                                {plan.price === -1 ? 'Custom' : (
-                                    <>
-                                        ₹{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
-                                    </>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {plans.filter(p => p.price > 0 || p.price === -1 || p.price === null).map((plan) => {
+                        const isCurrentPlan = subscription && subscription.plan_id === plan.id;
+                        const isProcessing = processingPlan === plan.id;
+                        const isCustomPricing = plan.price === -1 || plan.price === null;
+
+                        return (
+                            <div
+                                key={plan.id}
+                                className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-200 ${isCurrentPlan
+                                    ? 'border-primary/50 bg-primary/5 shadow-xl shadow-primary/10'
+                                    : 'border-border bg-card hover:border-primary/50 hover:shadow-lg'
+                                    }`}
+                            >
+                                {isCurrentPlan && (
+                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full uppercase tracking-wider">
+                                        Current Plan
+                                    </div>
                                 )}
+
+                                <div className="mb-4">
+                                    <h4 className="text-xl font-bold text-foreground">{plan.name}</h4>
+                                    <div className="mt-4 flex items-baseline text-foreground">
+                                        {isCustomPricing ? (
+                                            <span className="text-3xl font-extrabold tracking-tight">Custom</span>
+                                        ) : (
+                                            <>
+                                                <span className="text-4xl font-extrabold tracking-tight">₹{plan.price}</span>
+                                                <span className="ml-1 text-sm font-medium text-muted-foreground">/mo</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex-1">
+                                    <ul className="space-y-3 mt-6">
+                                        {/* Prioritize benefits array if available as it usually contains the full marketing copy */}
+                                        {plan.features?.benefits?.length > 0 ? (
+                                            plan.features.benefits.map((benefit: string, idx: number) => (
+                                                <li key={idx} className="flex items-start text-sm text-foreground/80">
+                                                    <Check className="w-5 h-5 text-green-500 mr-3 shrink-0" />
+                                                    <span className="leading-5">{benefit}</span>
+                                                </li>
+                                            ))
+                                        ) : (
+                                            /* Fallback to structured limits if no benefits text exists */
+                                            <>
+                                                {plan.features?.max_businesses !== undefined && (
+                                                    <li className="flex items-start text-sm text-foreground/80">
+                                                        <Check className="w-5 h-5 text-green-500 mr-3 shrink-0" />
+                                                        <span>{plan.features.max_businesses === -1 ? 'Unlimited' : `Up to ${plan.features.max_businesses}`} Business{plan.features.max_businesses !== 1 ? 'es' : ''}</span>
+                                                    </li>
+                                                )}
+                                                {plan.features?.max_shops_per_business !== undefined && (
+                                                    <li className="flex items-start text-sm text-foreground/80">
+                                                        <Check className="w-5 h-5 text-green-500 mr-3 shrink-0" />
+                                                        <span>{plan.features.max_shops_per_business === -1 ? 'Unlimited' : `Up to ${plan.features.max_shops_per_business}`} Shops per Business</span>
+                                                    </li>
+                                                )}
+                                            </>
+                                        )}
+                                    </ul>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-border/50">
+                                    {isCustomPricing ? (
+                                        <Button
+                                            className="w-full h-11 font-medium text-base rounded-xl"
+                                            variant="outline"
+                                            onClick={() => window.location.href = 'mailto:sales@vallaroo.com?subject=Enterprise%20Plan%20Inquiry'}
+                                        >
+                                            Contact Sales
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            className={`w-full h-11 font-semibold text-base rounded-xl transition-all ${isCurrentPlan ? '' : 'hover:scale-[1.02] active:scale-[0.98]'
+                                                }`}
+                                            onClick={() => handleUpgrade(plan.id)}
+                                            disabled={!!processingPlan || !isRazorpayLoaded || isCurrentPlan}
+                                            variant={isCurrentPlan ? 'secondary' : 'default'}
+                                        >
+                                            {isProcessing ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                isCurrentPlan ? 'Current Plan' : 'Upgrade Plan'
+                                            )}
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
-
-                            <ul className="mt-6 space-y-4 flex-1">
-                                {plan.price === -1 ? (
-                                    <>
-                                        <li className="flex items-center text-sm">
-                                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                                            <span>Unlimited Businesses</span>
-                                        </li>
-                                        <li className="flex items-center text-sm">
-                                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                                            <span>Custom Shop Limits</span>
-                                        </li>
-                                        <li className="flex items-center text-sm">
-                                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                                            <span>Dedicated Support</span>
-                                        </li>
-                                    </>
-                                ) : (
-                                    <>
-                                        <li className="flex items-center text-sm">
-                                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                                            <span>Up to {plan.features.max_businesses} Business{plan.features.max_businesses > 1 ? 'es' : ''}</span>
-                                        </li>
-                                        <li className="flex items-center text-sm">
-                                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                                            <span>Up to {plan.features.max_shops_per_business} Shops per Business</span>
-                                        </li>
-                                    </>
-                                )}
-                            </ul>
-
-                            {plan.price === -1 ? (
-                                <Button
-                                    className="mt-8 w-full"
-                                    variant="outline"
-                                    onClick={() => window.location.href = 'mailto:sales@vallaroo.com?subject=Enterprise%20Plan%20Inquiry'}
-                                >
-                                    Contact Sales
-                                </Button>
-                            ) : (
-                                <Button
-                                    className="mt-8 w-full"
-                                    onClick={() => handleUpgrade(Object.keys(PLANS).find(key => PLANS[key].id === plan.id) || '')}
-                                    disabled={!!processingPlan || !isRazorpayLoaded || (subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id))}
-                                    variant={subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? 'outline' : 'default'}
-                                >
-                                    {processingPlan === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                                        (subscription && subscription.plan_id === Object.keys(PLANS).find(key => PLANS[key].id === plan.id) ? 'Current Plan' : 'Upgrade')}
-                                </Button>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>

@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { LanguageProvider } from '@/contexts/language-context';
 import { Toaster } from 'sonner';
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,6 +37,7 @@ export default function RootLayout({
         >
           <LanguageProvider>
             {children}
+            <PWAInstallPrompt />
             <Toaster />
           </LanguageProvider>
         </ThemeProvider>

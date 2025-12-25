@@ -57,7 +57,8 @@ export interface Customer {
 }
 
 export interface BillItem {
-    product_id: string;
+    product_id?: string | null;
+    service_id?: string | null;
     name: string;
     name_ml?: string | null;
     price: number;

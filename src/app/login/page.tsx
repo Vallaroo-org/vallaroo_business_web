@@ -1,10 +1,11 @@
 import { login, signInWithGoogle } from './actions'
 import { Store, ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { parseError } from '@/lib/utils'
 
 export default async function LoginPage({
     searchParams,
 }: {
-    searchParams: Promise<{ message?: string; error?: string; verification_sent?: string; next?: string }>
+    searchParams: Promise<{ message?: string; error?: string; verification_sent?: string; next?: string; email?: string }>
 }) {
     const params = await searchParams;
     const next = params.next || '/';
@@ -58,7 +59,7 @@ export default async function LoginPage({
 
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email
+                                    Email <span className="text-red-600">*</span>
                                 </label>
                                 <input
                                     id="email"
@@ -66,6 +67,7 @@ export default async function LoginPage({
                                     type="email"
                                     autoComplete="email"
                                     required
+                                    defaultValue={typeof params.email === 'string' ? params.email : ''}
                                     className="block w-full rounded-md border-0 py-3.5 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6 bg-white !bg-white [&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827] transition-all duration-200 ease-in-out"
                                     placeholder="name@company.com"
                                 />
@@ -74,9 +76,9 @@ export default async function LoginPage({
                             <div>
                                 <div className="flex items-center justify-between mb-2">
                                     <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                                        Password
+                                        Password <span className="text-red-600">*</span>
                                     </label>
-                                    <a href="#" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
+                                    <a href="/forgot-password" className="text-sm font-semibold text-gray-900 hover:text-gray-700">
                                         Forgot?
                                     </a>
                                 </div>
@@ -94,7 +96,7 @@ export default async function LoginPage({
                             {params.error && (
                                 <div className="rounded-lg bg-red-50 p-3 flex items-start gap-3">
                                     <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                                    <p className="text-sm text-red-700">{params.error}</p>
+                                    <p className="text-sm text-red-700">{parseError(params.error)}</p>
                                 </div>
                             )}
 

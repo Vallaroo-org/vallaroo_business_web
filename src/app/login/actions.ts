@@ -20,7 +20,7 @@ export async function login(formData: FormData) {
     })
 
     if (error) {
-        redirect(`/login?error=Invalid credentials&next=${encodeURIComponent(next)}`)
+        redirect(`/login?error=Invalid credentials&next=${encodeURIComponent(next)}&email=${encodeURIComponent(email)}`)
     }
 
     revalidatePath('/', 'layout')
@@ -69,4 +69,41 @@ export async function signInWithGoogle(formData: FormData) {
     if (data.url) {
         redirect(data.url)
     }
+}
+
+export async function resetPassword(formData: FormData) {
+    const supabase = await createClient()
+
+    const email = formData.get('email') as string
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/auth/update-password`,
+    })
+
+    if (error) {
+        redirect('/forgot-password?error=Could not send reset password email')
+    }
+
+    redirect('/forgot-password?message=Check your email for the reset link')
+}
+
+export async function updatePassword(formData: FormData) {
+    const supabase = await createClient()
+
+    const password = formData.get('password') as string
+    const confirmPassword = formData.get('confirmPassword') as string
+
+    if (password !== confirmPassword) {
+        redirect('/auth/update-password?error=Passwords do not match')
+    }
+
+    const { error } = await supabase.auth.updateUser({
+        password: password
+    })
+
+    if (error) {
+        redirect('/auth/update-password?error=Could not update password')
+    }
+
+    redirect('/login?message=Password updated successfully')
 }

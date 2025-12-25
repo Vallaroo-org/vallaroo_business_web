@@ -115,7 +115,8 @@ function CreateShopForm() {
         }
         if (step === 2) {
             if (!formData.city) return false;
-            // if (!formData.address1) return false; // Enforce address if needed
+            // Enforce address
+            if (!formData.address1) return false;
         }
         return true;
     };
@@ -359,7 +360,7 @@ function CreateShopForm() {
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="col-span-1 md:col-span-2">
-                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 1</label>
+                                    <label className="text-sm font-medium mb-1.5 block text-foreground">Address Line 1 <span className="text-red-500">*</span></label>
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input

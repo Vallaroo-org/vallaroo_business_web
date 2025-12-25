@@ -60,6 +60,24 @@ export default function CreateBusinessPage() {
 
     const handleSubmit = async () => {
         setLoading(true);
+
+        // Validation
+        if (formData.website) {
+            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlPattern.test(formData.website)) {
+                alert('Please enter a valid website URL.');
+                setLoading(false);
+                return;
+            }
+        }
+
+        const phonePattern = /^(?:\+91|91|0)?[6-9]\d{9}$/;
+        if (!phonePattern.test(formData.ownerPhone)) {
+            alert('Please enter a valid 10-digit mobile number.');
+            setLoading(false);
+            return;
+        }
+
         try {
             const data = new FormData();
             Object.entries(formData).forEach(([key, value]) => {

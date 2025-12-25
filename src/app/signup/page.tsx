@@ -1,5 +1,6 @@
 import { signup, signInWithGoogle } from '../login/actions'
 import { Store, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { parseError } from '@/lib/utils'
 
 export default async function SignupPage({
     searchParams,
@@ -36,7 +37,7 @@ export default async function SignupPage({
 
                             <div>
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email
+                                    Email <span className="text-red-600">*</span>
                                 </label>
                                 <input
                                     id="email"
@@ -51,7 +52,7 @@ export default async function SignupPage({
 
                             <div>
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Password
+                                    Password <span className="text-red-600">*</span>
                                 </label>
                                 <input
                                     id="password"
@@ -67,7 +68,7 @@ export default async function SignupPage({
                             {params.error && (
                                 <div className="rounded-lg bg-red-50 p-3 flex items-start gap-3">
                                     <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                                    <p className="text-sm text-red-700">{params.error}</p>
+                                    <p className="text-sm text-red-700">{parseError(params.error)}</p>
                                 </div>
                             )}
 

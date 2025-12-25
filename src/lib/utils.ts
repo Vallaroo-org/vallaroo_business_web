@@ -16,3 +16,22 @@ export function formatCurrency(amount: number | string | null | undefined): stri
     maximumFractionDigits: 2,
   }).format(val);
 }
+
+export function parseError(error: any): string {
+  if (!error) return '';
+  const message = typeof error === 'string' ? error : error.toString();
+
+  if (message.startsWith('Exception: ')) {
+    return message.substring(11);
+  }
+
+  if (message.trim().startsWith('{') && message.trim().endsWith('}')) {
+    try {
+      const json = JSON.parse(message);
+      return json.message || json.error_description || json.msg || message;
+    } catch (e) {
+      return message;
+    }
+  }
+  return message;
+}

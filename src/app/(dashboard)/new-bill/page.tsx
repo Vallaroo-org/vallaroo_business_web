@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useBusiness } from '@/hooks/use-business';
-import { Product, Customer } from '@/lib/types';
+import { Product, Customer, Service } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,10 @@ import BillSuccessDialog from '@/components/pos/bill-success-dialog';
 import { toast } from 'sonner';
 
 interface CartItem {
-    product_id: string;
-    product: Product;
+    product_id?: string;
+    service_id?: string;
+    product?: Product;
+    service?: Service;
     quantity: number;
     price: number;
     name_ml?: string;
@@ -34,7 +36,9 @@ function NewBillContent() {
     const editId = searchParams.get('edit');
 
     // Data State
+    // Data State
     const [products, setProducts] = useState<Product[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loadingData, setLoadingData] = useState(false);
 
@@ -43,9 +47,10 @@ function NewBillContent() {
 
     // Selection State
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-    const [productSearch, setProductSearch] = useState('');
+    const [itemSearch, setItemSearch] = useState('');
     const [customerSearch, setCustomerSearch] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [activeTab, setActiveTab] = useState<'products' | 'services'>('products');
 
     // Derived State for Categories
     const categories = ['all', ...Array.from(new Set(products.map(p => p.category_id).filter(Boolean)))];
@@ -103,17 +108,30 @@ function NewBillContent() {
             // Populate cart
             // Need full product details. Map from loaded products.
             const recreatedCart: CartItem[] = bill.items.map((item: any) => {
-                const product = products.find(p => p.id === item.product_id);
-                if (product) {
-                    return {
-                        product_id: product.id,
-                        product: product,
-                        quantity: item.quantity,
-                        price: item.price, // Use price from bill, or current price? Usually price at time of sale.
-                        name_ml: item.name_ml
-                    };
+                if (item.product_id) {
+                    const product = products.find(p => p.id === item.product_id);
+                    if (product) {
+                        return {
+                            product_id: product.id,
+                            product: product,
+                            quantity: item.quantity,
+                            price: item.price,
+                            name_ml: item.name_ml
+                        };
+                    }
+                } else if (item.service_id) {
+                    const service = services.find(s => s.id === item.service_id);
+                    if (service) {
+                        return {
+                            service_id: service.id,
+                            service: service,
+                            quantity: item.quantity,
+                            price: item.price,
+                            name_ml: item.name_ml
+                        };
+                    }
                 }
-                // Fallback for deleted products?
+                // Fallback for deleted products/services?
                 return null;
             }).filter(Boolean);
 
@@ -141,6 +159,23 @@ function NewBillContent() {
 
             setProducts(productsData || []);
 
+            // Fetch Services
+            const { data: servicesData } = await supabase
+                .from('services')
+                .select('*')
+                .eq('shop_id', selectedShop.id)
+                .eq('is_active', true)
+                .order('name');
+
+            setServices(servicesData || []);
+
+            // Auto-select tab based on shop type
+            if (selectedShop.shop_type === 'service') {
+                setActiveTab('services');
+            } else {
+                setActiveTab('products');
+            }
+
             // Fetch Customers
             const { data: customersData } = await supabase
                 .from('customers')
@@ -158,34 +193,51 @@ function NewBillContent() {
     };
 
     // Cart Actions
-    const addToCart = (product: Product) => {
+    // Cart Actions
+    const addToCart = (item: Product | Service, type: 'product' | 'service') => {
         setCart(prev => {
-            const existing = prev.find(item => item.product_id === product.id);
+            const id = item.id;
+            const existing = prev.find(i => (type === 'product' ? i.product_id === id : i.service_id === id));
+
             if (existing) {
-                return prev.map(item =>
-                    item.product_id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
+                return prev.map(cartItem => {
+                    const isMatch = type === 'product' ? cartItem.product_id === id : cartItem.service_id === id;
+                    return isMatch
+                        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                        : cartItem;
+                });
             }
-            return [...prev, {
-                product_id: product.id,
-                product,
+
+            const newItem: CartItem = {
                 quantity: 1,
-                price: product.price,
-                name_ml: product.name_ml || undefined
-            }];
+                price: item.price,
+                name_ml: item.name_ml || undefined
+            };
+
+            if (type === 'product') {
+                newItem.product_id = item.id;
+                newItem.product = item as Product;
+            } else {
+                newItem.service_id = item.id;
+                newItem.service = item as Service;
+            }
+
+            return [...prev, newItem];
         });
-        setProductSearch('');
+        setItemSearch('');
     };
 
-    const removeFromCart = (productId: string) => {
-        setCart(prev => prev.filter(item => item.product_id !== productId));
+    const removeFromCart = (id: string, type: 'product' | 'service') => {
+        setCart(prev => prev.filter(item => {
+            if (type === 'product') return item.product_id !== id;
+            return item.service_id !== id;
+        }));
     };
 
-    const updateQuantity = (productId: string, delta: number) => {
+    const updateQuantity = (id: string, type: 'product' | 'service', delta: number) => {
         setCart(prev => prev.map(item => {
-            if (item.product_id === productId) {
+            const isMatch = type === 'product' ? item.product_id === id : item.service_id === id;
+            if (isMatch) {
                 const newQty = Math.max(1, item.quantity + delta);
                 return { ...item, quantity: newQty };
             }
@@ -196,11 +248,18 @@ function NewBillContent() {
     const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     // Filtered Lists
-    const filteredProducts = products.filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
-        const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
-        return matchesSearch && matchesCategory;
-    });
+    // Filtered Lists
+    const filteredItems = activeTab === 'products'
+        ? products.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(itemSearch.toLowerCase());
+            const matchesCategory = selectedCategory === 'all' || p.category_id === selectedCategory;
+            return matchesSearch && matchesCategory;
+        })
+        : services.filter(s => {
+            const matchesSearch = s.name.toLowerCase().includes(itemSearch.toLowerCase());
+            // Services category filtering logic if needed
+            return matchesSearch;
+        });
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -323,13 +382,13 @@ function NewBillContent() {
                 }
             }
 
-            // 2. Create Bill Items (for both insert and update)
             const billItems = cart.map(item => ({
                 bill_id: targetBillId,
                 business_id: selectedBusiness!.id,
                 shop_id: selectedShop.id,
                 product_id: item.product_id,
-                name: item.product.name,
+                service_id: item.service_id,
+                name: item.product?.name || item.service?.name || '',
                 name_ml: item.name_ml,
                 quantity: item.quantity,
                 price: item.price,
@@ -370,7 +429,7 @@ function NewBillContent() {
         <div className="flex h-[calc(100vh-80px)] overflow-hidden bg-background">
             {/* Left Side: Product Catalog */}
             <div className="flex-1 flex flex-col min-w-0 pr-0 lg:pr-6">
-                {/* Header & Search */}
+                {/* Header & Search & Tabs */}
                 <div className="mb-4 space-y-4 shrink-0 px-1">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -389,44 +448,68 @@ function NewBillContent() {
                         </div>
                     </div>
 
+                    {/* Tabs for Hybrid Shops */}
+                    {selectedShop?.shop_type === 'both' && (
+                        <div className="flex p-1 bg-muted/50 rounded-xl">
+                            <button
+                                onClick={() => setActiveTab('products')}
+                                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'products'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                            >
+                                Products
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('services')}
+                                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'services'
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}
+                            >
+                                Services
+                            </button>
+                        </div>
+                    )}
+
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         </div>
                         <Input
                             className="pl-10 h-12 text-lg bg-card/50 backdrop-blur-sm border-border focus:ring-2 ring-primary/20 transition-all rounded-xl shadow-sm"
-                            placeholder="Search products..."
-                            value={productSearch}
-                            onChange={(e) => setProductSearch(e.target.value)}
+                            placeholder={`Search ${activeTab}...`}
+                            value={itemSearch}
+                            onChange={(e) => setItemSearch(e.target.value)}
                             autoFocus
                         />
                     </div>
                 </div>
 
-                {/* Product Grid */}
+                {/* Item Grid */}
                 <div className="flex-1 overflow-y-auto px-1 pb-4 scrollbar-hide">
                     {loadingData ? (
                         <div className="flex flex-col items-center justify-center h-64 text-muted-foreground animate-pulse">
                             <Loader2 className="w-8 h-8 animate-spin mb-2" />
                             <p>Loading catalog...</p>
                         </div>
-                    ) : filteredProducts.length === 0 ? (
+                    ) : filteredItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                             <Search className="w-12 h-12 mb-3 opacity-20" />
-                            <p className="text-lg">No products found</p>
+                            <p className="text-lg">No items found</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {filteredProducts.map((product) => (
+                            {filteredItems.map((item) => (
                                 <button
-                                    key={product.id}
-                                    onClick={() => addToCart(product)}
+                                    key={item.id}
+                                    onClick={() => addToCart(item, activeTab === 'services' ? 'service' : 'product')}
                                     className="group relative flex flex-col overflow-hidden rounded-2xl bg-card border border-border/50 hover:border-primary/50 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-left h-48 sm:h-56"
                                 >
                                     {/* Image / Gradient Area */}
-                                    <div className={`h-2/3 w-full bg-gradient-to-br ${getGradient(product.id)} p-4 flex items-start justify-end p-2 relative`}>
+                                    <div className={`h-2/3 w-full bg-gradient-to-br ${getGradient(item.id)} p-4 flex items-start justify-end p-2 relative`}>
                                         <div className="absolute top-2 right-2 bg-black/20 backdrop-blur-md px-2 py-1 rounded-lg text-white text-xs font-bold">
-                                            {formatCurrency(product.price)}
+                                            {formatCurrency(item.price)}
                                         </div>
                                         <div className="mt-auto w-full">
                                             <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0 duration-300">
@@ -438,12 +521,14 @@ function NewBillContent() {
                                     {/* Content Area */}
                                     <div className="p-3 flex-1 flex flex-col justify-between bg-card">
                                         <div>
-                                            <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{product.name}</h3>
-                                            {product.name_ml && <p className="text-xs text-muted-foreground font-ml">{product.name_ml}</p>}
+                                            <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">{item.name}</h3>
+                                            {item.name_ml && <p className="text-xs text-muted-foreground font-ml">{item.name_ml}</p>}
                                         </div>
                                         <div className="flex items-center gap-1 mt-2">
                                             <Tag className="w-3 h-3 text-muted-foreground" />
-                                            <span className="text-xs text-muted-foreground capitalize">Item</span>
+                                            <span className="text-xs text-muted-foreground capitalize">
+                                                {activeTab === 'services' ? 'Service' : 'Item'}
+                                            </span>
                                         </div>
                                     </div>
                                 </button>
@@ -533,44 +618,51 @@ function NewBillContent() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {cart.map((item) => (
-                                <div key={item.product_id} className="p-3 flex items-center gap-3 bg-background hover:bg-muted/30 rounded-xl border border-transparent hover:border-border transition-all group">
-                                    <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getGradient(item.product_id)} shrink-0`} />
+                            {cart.map((item) => {
+                                const isProduct = !!item.product_id;
+                                const id = item.product_id || item.service_id!;
+                                const type = isProduct ? 'product' : 'service';
+                                const name = item.product?.name || item.service?.name || 'Unknown Item';
 
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start">
-                                            <span className="text-sm font-medium line-clamp-1">{item.product.name}</span>
-                                            <span className="text-sm font-bold ml-2">{formatCurrency(item.price * item.quantity)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between mt-1">
-                                            <span className="text-xs text-muted-foreground">{formatCurrency(item.price)} x {item.quantity}</span>
+                                return (
+                                    <div key={id} className="p-3 flex items-center gap-3 bg-background hover:bg-muted/30 rounded-xl border border-transparent hover:border-border transition-all group">
+                                        <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${getGradient(id)} shrink-0`} />
 
-                                            <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-0.5">
-                                                <button
-                                                    onClick={() => updateQuantity(item.product_id, -1)}
-                                                    disabled={item.quantity <= 1}
-                                                    className="p-1 hover:bg-background rounded-md text-muted-foreground disabled:opacity-30 transition-shadow hover:shadow-sm"
-                                                >
-                                                    <Minus className="w-3 h-3" />
-                                                </button>
-                                                <button
-                                                    onClick={() => updateQuantity(item.product_id, 1)}
-                                                    className="p-1 hover:bg-background rounded-md text-foreground transition-shadow hover:shadow-sm"
-                                                >
-                                                    <Plus className="w-3 h-3" />
-                                                </button>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex justify-between items-start">
+                                                <span className="text-sm font-medium line-clamp-1">{name}</span>
+                                                <span className="text-sm font-bold ml-2">{formatCurrency(item.price * item.quantity)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-1">
+                                                <span className="text-xs text-muted-foreground">{formatCurrency(item.price)} x {item.quantity}</span>
+
+                                                <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-0.5">
+                                                    <button
+                                                        onClick={() => updateQuantity(id, type, -1)}
+                                                        disabled={item.quantity <= 1}
+                                                        className="p-1 hover:bg-background rounded-md text-muted-foreground disabled:opacity-30 transition-shadow hover:shadow-sm"
+                                                    >
+                                                        <Minus className="w-3 h-3" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => updateQuantity(id, type, 1)}
+                                                        className="p-1 hover:bg-background rounded-md text-foreground transition-shadow hover:shadow-sm"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <button
-                                        onClick={() => removeFromCart(item.product_id)}
-                                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            ))}
+                                        <button
+                                            onClick={() => removeFromCart(id, type)}
+                                            className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>

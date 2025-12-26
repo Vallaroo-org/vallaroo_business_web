@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useBusiness } from '@/hooks/use-business';
 import { OnlineOrder } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function OrderHistoryPage() {
     const [orders, setOrders] = useState<OnlineOrder[]>([]);
@@ -19,7 +21,9 @@ export default function OrderHistoryPage() {
     const { selectedShop, isLoading: contextLoading } = useBusiness();
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
+
     const LIMIT = 50;
+    const router = useRouter();
 
     // Statuses considered "History"
     const HISTORY_STATUSES = ['completed', 'cancelled', 'rejected'];
@@ -69,6 +73,33 @@ export default function OrderHistoryPage() {
 
     const handleLoadMore = () => {
         fetchOrders(offset);
+    };
+
+    const handleViewInvoice = async (e: React.MouseEvent, orderId: string) => {
+        e.stopPropagation();
+        if (!selectedShop) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('bills')
+                .select('id')
+                .eq('shop_id', selectedShop.id)
+                .contains('metadata', { order_id: orderId })
+                .single();
+
+            if (error || !data) {
+                toast.error('Invoice not found for this order');
+                return;
+            }
+
+            // Open in new tab? Or navigate?
+            // Usually invoice viewing is better in new tab or same tab.
+            // Let's navigate for now as per plan.
+            router.push(`/bill-history/${data.id}`);
+        } catch (error) {
+            console.error('Error fetching invoice:', error);
+            toast.error('Failed to load invoice');
+        }
     };
 
     const isLoading = contextLoading || (dataLoading && offset === 0);
@@ -143,9 +174,17 @@ export default function OrderHistoryPage() {
                                                     {formatCurrency(order.total_amount)}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                    <Link href={`/orders/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 pointer-events-auto">
+                                                    <Link href={`/orders/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 pointer-events-auto mr-4">
                                                         View
                                                     </Link>
+                                                    {order.status === 'completed' && (
+                                                        <button
+                                                            onClick={(e) => handleViewInvoice(e, order.id)}
+                                                            className="text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 pointer-events-auto font-medium"
+                                                        >
+                                                            Invoice
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

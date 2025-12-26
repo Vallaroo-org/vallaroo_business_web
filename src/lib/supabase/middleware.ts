@@ -47,6 +47,7 @@ export async function updateSession(request: NextRequest) {
         !path.startsWith('/login') &&
         !path.startsWith('/signup') &&
         !path.startsWith('/auth') &&
+        !path.startsWith('/forgot-password') &&
         !path.startsWith('/api/webhooks') &&
         !path.startsWith('/api/debug')
     ) {

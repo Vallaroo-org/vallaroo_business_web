@@ -8,7 +8,7 @@ export async function verifyRecoveryToken(formData: FormData) {
     const token = formData.get('token') as string
 
     if (!email || !token) {
-        return { error: 'Missing email or token' }
+        redirect('/forgot-password?error=Missing email or token')
     }
 
     const supabase = await createClient()

@@ -93,7 +93,7 @@ function CreateShopForm() {
     useEffect(() => {
         async function fetchCategories() {
             const supabase = createClient();
-            const { data, error } = await supabase.from('shop_categories').select('*');
+            const { data, error } = await supabase.from('shop_categories').select('*').order('name', { ascending: true });
             if (data) {
                 setCategories(data);
             }

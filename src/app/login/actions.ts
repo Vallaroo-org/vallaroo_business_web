@@ -34,6 +34,10 @@ export async function signup(formData: FormData) {
     const password = formData.get('password') as string
     const next = (formData.get('next') as string) || '/'
 
+    if (!password || password.length < 8) {
+        redirect(`/login?error=Password must be at least 8 characters&next=${encodeURIComponent(next)}`)
+    }
+
     // Simple signup - in real app would likely need more profile info
     const { error } = await supabase.auth.signUp({
         email,
@@ -92,6 +96,10 @@ export async function updatePassword(formData: FormData) {
 
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirmPassword') as string
+
+    if (!password || password.length < 8) {
+        redirect('/auth/update-password?error=Password must be at least 8 characters')
+    }
 
     if (password !== confirmPassword) {
         redirect('/auth/update-password?error=Passwords do not match')

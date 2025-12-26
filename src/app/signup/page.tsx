@@ -60,6 +60,7 @@ export default async function SignupPage({
                                     type="password"
                                     autoComplete="new-password"
                                     required
+                                    minLength={8}
                                     className="block w-full rounded-md border-0 py-3.5 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6 bg-white !bg-white [&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827] transition-all duration-200 ease-in-out"
                                     placeholder="••••••••"
                                 />

@@ -105,7 +105,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
 
             const staffBusinessIds = allStaffMembers?.map((sm: any) => sm.business_id) || [];
 
-            let query = supabase.from('businesses').select('*');
+            let query = supabase.from('businesses').select('*').order('name', { ascending: true });
 
             if (staffBusinessIds.length > 0) {
                 query = query.or(`owner_id.eq.${user.id},id.in.(${staffBusinessIds.join(',')})`);

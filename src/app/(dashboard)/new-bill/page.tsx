@@ -58,6 +58,7 @@ function NewBillContent() {
     // Submission State
     const [submitting, setSubmitting] = useState(false);
     const [loadingBill, setLoadingBill] = useState(false);
+    const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
     useEffect(() => {
         if (!contextLoading && selectedBusiness && selectedShop) {
@@ -787,19 +788,263 @@ function NewBillContent() {
 
             {/* Mobile Cart Floating Action Button */}
             {cart.length > 0 && (
-                <div className="lg:hidden fixed bottom-6 right-6 z-50">
+                <div className="lg:hidden fixed bottom-6 right-6 z-40">
                     <Button
                         size="lg"
                         className="rounded-full h-14 w-14 shadow-2xl shadow-primary/40 p-0 flex items-center justify-center relative"
-                        onClick={() => {
-                            toast.info("Please use desktop for full feature set.");
-                        }}
+                        onClick={() => setMobileCartOpen(true)}
                     >
                         <ShoppingCaret className="w-6 h-6" />
                         <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full text-white text-xs flex items-center justify-center border-2 border-background">
                             {cart.length}
                         </span>
                     </Button>
+                </div>
+            )}
+
+            {/* Mobile Cart Panel (Slide Up) */}
+            {mobileCartOpen && (
+                <div className="lg:hidden fixed inset-0 z-50">
+                    {/* Overlay */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setMobileCartOpen(false)}
+                    />
+
+                    {/* Cart Panel */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-card rounded-t-3xl shadow-2xl max-h-[90vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+                        {/* Handle & Header */}
+                        <div className="p-4 border-b border-border">
+                            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-3" />
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-foreground font-semibold">
+                                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                                        <ShoppingCart className="w-5 h-5" />
+                                    </div>
+                                    <span>Your Cart</span>
+                                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                                        {cart.length} items
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={() => setMobileCartOpen(false)}
+                                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Customer Selection (Mobile) */}
+                        <div className="px-4 py-3 border-b border-border">
+                            {selectedCustomer ? (
+                                <div className="flex items-center justify-between p-3 bg-background rounded-xl border border-primary/20">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                            {selectedCustomer.name.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-foreground truncate">{selectedCustomer.name}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedCustomer.phone_number}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedCustomer(null)}
+                                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        className="pl-9 bg-background border-border rounded-xl"
+                                        placeholder="Add Customer..."
+                                        value={customerSearch}
+                                        onChange={(e) => setCustomerSearch(e.target.value)}
+                                    />
+                                    {customerSearch && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl shadow-xl max-h-40 overflow-y-auto z-50 p-1">
+                                            {filteredCustomers.length > 0 ? filteredCustomers.slice(0, 5).map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-lg text-foreground flex items-center justify-between"
+                                                    onClick={() => {
+                                                        setSelectedCustomer(c);
+                                                        setCustomerSearch('');
+                                                    }}
+                                                >
+                                                    <span>{c.name}</span>
+                                                    <span className="text-xs text-muted-foreground">{c.phone_number}</span>
+                                                </button>
+                                            )) : (
+                                                <div className="p-3 text-xs text-center text-muted-foreground">No customers found</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Cart Items (Mobile) */}
+                        <div className="flex-1 overflow-y-auto p-4 min-h-0" style={{ maxHeight: '35vh' }}>
+                            {cart.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-60">
+                                    <ShoppingCart className="w-12 h-12 mb-2" />
+                                    <p className="text-sm">Your cart is empty</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {cart.map((item) => {
+                                        const isProduct = !!item.product_id;
+                                        const id = item.product_id || item.service_id!;
+                                        const type = isProduct ? 'product' : 'service';
+                                        const name = item.product?.name || item.service?.name || 'Unknown Item';
+
+                                        return (
+                                            <div key={id} className="p-3 flex items-center gap-3 bg-background rounded-xl border border-border">
+                                                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${getGradient(id)} shrink-0`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start">
+                                                        <span className="text-sm font-medium line-clamp-1">{name}</span>
+                                                        <span className="text-sm font-bold ml-2">{formatCurrency(item.price * item.quantity)}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-1">
+                                                        <span className="text-xs text-muted-foreground">{formatCurrency(item.price)} x {item.quantity}</span>
+                                                        <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-0.5">
+                                                            <button
+                                                                onClick={() => updateQuantity(id, type, -1)}
+                                                                disabled={item.quantity <= 1}
+                                                                className="p-1.5 hover:bg-background rounded-md text-muted-foreground disabled:opacity-30"
+                                                            >
+                                                                <Minus className="w-3 h-3" />
+                                                            </button>
+                                                            <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                                                            <button
+                                                                onClick={() => updateQuantity(id, type, 1)}
+                                                                className="p-1.5 hover:bg-background rounded-md text-foreground"
+                                                            >
+                                                                <Plus className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => removeFromCart(id, type)}
+                                                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Cart Footer (Mobile) */}
+                        <div className="p-4 bg-card border-t border-border space-y-3">
+                            <div className="flex justify-between text-sm text-muted-foreground">
+                                <span>Subtotal</span>
+                                <span>{formatCurrency(subTotal)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm text-muted-foreground">
+                                <span>Discount</span>
+                                <div className="w-20">
+                                    <Input
+                                        type="number"
+                                        value={discount || ''}
+                                        onChange={(e) => {
+                                            const val = parseFloat(e.target.value);
+                                            setDiscount(isNaN(val) ? 0 : val);
+                                        }}
+                                        className="h-8 text-right bg-background"
+                                        placeholder="0"
+                                        min="0"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Payment Status (Mobile) */}
+                            <div className="pt-2 border-t border-border space-y-2">
+                                <span className="text-sm font-medium">Payment Status</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => setPaymentStatus('paid')}
+                                        className={`px-2 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'paid'
+                                            ? 'bg-[#16a34a] text-white border-[#16a34a] font-medium'
+                                            : 'bg-background hover:bg-muted border-border'
+                                            }`}
+                                    >
+                                        Paid
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentStatus('unpaid')}
+                                        className={`px-2 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'unpaid'
+                                            ? 'bg-[#dc2626] text-white border-[#dc2626] font-medium'
+                                            : 'bg-background hover:bg-muted border-border'
+                                            }`}
+                                    >
+                                        Unpaid
+                                    </button>
+                                    <button
+                                        onClick={() => setPaymentStatus('partial')}
+                                        className={`px-2 py-2 text-sm rounded-lg border transition-all ${paymentStatus === 'partial'
+                                            ? 'bg-[#ca8a04] text-white border-[#ca8a04] font-medium'
+                                            : 'bg-background hover:bg-muted border-border'
+                                            }`}
+                                    >
+                                        Partial
+                                    </button>
+                                </div>
+
+                                {paymentStatus === 'partial' && (
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-muted-foreground">Amount Paid</label>
+                                        <Input
+                                            type="number"
+                                            value={paidAmount}
+                                            onChange={(e) => {
+                                                setPaidAmount(e.target.value);
+                                                if (partialError) setPartialError(null);
+                                            }}
+                                            placeholder="Enter amount paid"
+                                            className={`h-9 ${partialError ? 'border-red-500' : ''}`}
+                                        />
+                                        {partialError && <p className="text-xs text-red-500">{partialError}</p>}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-2 border-t border-border flex justify-between items-end">
+                                <span className="text-base font-semibold">Total</span>
+                                <span className="text-xl font-bold text-primary">{formatCurrency(totalPayable)}</span>
+                            </div>
+
+                            <Button
+                                className="w-full h-12 text-base font-medium shadow-lg shadow-primary/20 rounded-xl"
+                                size="lg"
+                                disabled={cart.length === 0 || submitting}
+                                onClick={() => {
+                                    handleCheckout();
+                                    setMobileCartOpen(false);
+                                }}
+                            >
+                                {submitting ? (
+                                    <>
+                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CreditCard className="w-5 h-5 mr-2" />
+                                        {editId ? 'Update Bill' : 'Checkout'}
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

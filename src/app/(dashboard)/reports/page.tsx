@@ -314,22 +314,22 @@ export default function ReportsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
 
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                        <Download className="w-4 h-4 mr-2" />
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Button variant="outline" size="sm" onClick={handleExportCSV} className="flex-1 sm:flex-none">
+                        <Download className="w-4 h-4 mr-1 sm:mr-2" />
                         CSV
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
-                        <Download className="w-4 h-4 mr-2" />
+                    <Button variant="outline" size="sm" onClick={handleExportPDF} className="flex-1 sm:flex-none">
+                        <Download className="w-4 h-4 mr-1 sm:mr-2" />
                         PDF
                     </Button>
                 </div>
             </div>
 
             {/* Filters Bar */}
-            <Card className="p-4">
-                <div className="flex flex-wrap items-center gap-4">
-                    <div className="w-[180px]">
+            <Card className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
+                    <div className="w-full sm:w-auto sm:min-w-[150px]">
                         <Select value={dateRange} onValueChange={handleDateRangeChange}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Date Range" />
@@ -343,24 +343,24 @@ export default function ReportsPage() {
                     </div>
 
                     {dateRange === 'custom' && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
                             <Input
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="w-auto"
+                                className="flex-1 sm:w-auto text-sm"
                             />
                             <span className="text-muted-foreground">-</span>
                             <Input
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="w-auto"
+                                className="flex-1 sm:w-auto text-sm"
                             />
                         </div>
                     )}
 
-                    <div className="w-[150px]">
+                    <div className="w-full sm:w-auto sm:min-w-[130px]">
                         <Select value={paymentStatus} onValueChange={setPaymentStatus}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Payment Status" />
@@ -373,7 +373,7 @@ export default function ReportsPage() {
                         </Select>
                     </div>
 
-                    <div className="w-[180px]">
+                    <div className="w-full sm:w-auto sm:min-w-[150px]">
                         <Select value={sortBy} onValueChange={setSortBy}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Sort By" />

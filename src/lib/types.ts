@@ -164,7 +164,25 @@ export interface Story {
     expires_at: string;
 }
 
-export type StaffRole = 'owner' | 'partner' | 'manager' | 'cashier' | 'inventory' | 'staff' | 'viewer';
+export type StaffRole = 'owner' | 'partner' | 'manager' | 'cashier' | 'inventory' | 'staff' | 'viewer'; // Legacy, prefer Role interface for detailed permissions
+
+export interface AppPermission {
+    slug: string;
+    description?: string;
+}
+
+export interface Role {
+    id: string;
+    business_id: string;
+    shop_id?: string | null;
+    name: string;
+    description?: string | null;
+    permissions?: string[] | null; // List of permission slugs
+    name_ml?: string | null;
+    description_ml?: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
 
 export interface StaffMember {
     id: string;
@@ -172,6 +190,7 @@ export interface StaffMember {
     shop_id?: string | null;
     user_id?: string | null;
     role: StaffRole;
+    role_id?: string | null; // ID of the custom role if assigned
     display_name: string;
     display_name_ml?: string | null;
     email?: string | null;

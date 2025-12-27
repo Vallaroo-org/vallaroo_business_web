@@ -8,11 +8,27 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// Validation Schema
+const businessProfileSchema = z.object({
+    name: z.string().min(1, 'Business name is required').max(100, 'Business name must be 100 characters or less'),
+    phone_number: z.string().optional().refine(
+        (val) => !val || /^[0-9+\-\s()]{10,15}$/.test(val),
+        { message: 'Please enter a valid phone number' }
+    ),
+    address_line1: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional()
+});
+
+type FormErrors = Partial<Record<keyof z.infer<typeof businessProfileSchema>, string>>;
 
 export default function BusinessProfilePage() {
     const supabase = createClient();
     const { selectedBusiness, isLoading: contextLoading } = useBusiness();
     const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<FormErrors>({});
 
     // Form State
     const [formData, setFormData] = useState({
@@ -36,14 +52,35 @@ export default function BusinessProfilePage() {
     }, [selectedBusiness]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error for this field when user types
+        if (errors[name as keyof FormErrors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedBusiness) return;
 
+        // Validate form
+        const validation = businessProfileSchema.safeParse(formData);
+        if (!validation.success) {
+            const newErrors: FormErrors = {};
+            validation.error.issues.forEach((issue) => {
+                if (issue.path[0]) {
+                    newErrors[issue.path[0] as keyof FormErrors] = issue.message;
+                }
+            });
+            setErrors(newErrors);
+            toast.error('Please fix the errors in the form');
+            return;
+        }
+
+        setErrors({});
         setSaving(true);
+
         try {
             const updates = {
                 id: selectedBusiness.id,
@@ -63,7 +100,6 @@ export default function BusinessProfilePage() {
             if (error) throw error;
 
             toast.success('Business profile updated successfully!');
-            // Ideally we'd update context here, but reload effectively does it
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Error updating business:', error);
@@ -106,15 +142,19 @@ export default function BusinessProfilePage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">Business Name</label>
+                            <label className="text-sm font-medium text-foreground">
+                                Business Name <span className="text-destructive">*</span>
+                            </label>
                             <Input
                                 name="name"
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="Business Name"
-                                required
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background border-input text-foreground ${errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                             />
+                            {errors.name && (
+                                <p className="text-xs text-destructive">{errors.name}</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -124,8 +164,11 @@ export default function BusinessProfilePage() {
                                 value={formData.phone_number}
                                 onChange={handleChange}
                                 placeholder="Business Phone"
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background border-input text-foreground ${errors.phone_number ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                             />
+                            {errors.phone_number && (
+                                <p className="text-xs text-destructive">{errors.phone_number}</p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -136,8 +179,11 @@ export default function BusinessProfilePage() {
                                     value={formData.city}
                                     onChange={handleChange}
                                     placeholder="City"
-                                    className="bg-background border-input text-foreground"
+                                    className={`bg-background border-input text-foreground ${errors.city ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                                 />
+                                {errors.city && (
+                                    <p className="text-xs text-destructive">{errors.city}</p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-foreground">State</label>
@@ -146,8 +192,11 @@ export default function BusinessProfilePage() {
                                     value={formData.state}
                                     onChange={handleChange}
                                     placeholder="State"
-                                    className="bg-background border-input text-foreground"
+                                    className={`bg-background border-input text-foreground ${errors.state ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                                 />
+                                {errors.state && (
+                                    <p className="text-xs text-destructive">{errors.state}</p>
+                                )}
                             </div>
                         </div>
 
@@ -158,8 +207,11 @@ export default function BusinessProfilePage() {
                                 value={formData.address_line1}
                                 onChange={handleChange}
                                 placeholder="Address Line 1"
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background border-input text-foreground ${errors.address_line1 ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                             />
+                            {errors.address_line1 && (
+                                <p className="text-xs text-destructive">{errors.address_line1}</p>
+                            )}
                         </div>
 
                     </CardContent>

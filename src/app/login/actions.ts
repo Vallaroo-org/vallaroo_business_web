@@ -35,7 +35,30 @@ export async function signup(formData: FormData) {
     const next = (formData.get('next') as string) || '/'
 
     if (!password || password.length < 8) {
-        redirect(`/login?error=Password must be at least 8 characters&next=${encodeURIComponent(next)}`)
+        redirect(`/signup?error=Password must be at least 8 characters&next=${encodeURIComponent(next)}`)
+    }
+
+    // Check if user exists to provide better feedback (requires service role)
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (serviceRoleKey) {
+        const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+        const adminClient = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            serviceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+        )
+
+        // Check user_profiles as a proxy for existing users
+        // Note: This assumes email is synced to user_profiles
+        const { data: existingProfile } = await adminClient
+            .from('user_profiles')
+            .select('id')
+            .eq('email', email)
+            .maybeSingle()
+
+        if (existingProfile) {
+            redirect(`/signup?error=Email already registered&next=${encodeURIComponent(next)}`)
+        }
     }
 
     // Simple signup - in real app would likely need more profile info
@@ -48,7 +71,10 @@ export async function signup(formData: FormData) {
     })
 
     if (error) {
-        redirect(`/login?error=Could not sign up&next=${encodeURIComponent(next)}`)
+        // User already registered error might be caught here if enumeration protection is OFF
+        // or other errors like rate limit, etc.
+        // Redirect back to signup page instead of login page
+        redirect(`/signup?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`)
     }
 
     revalidatePath('/', 'layout')

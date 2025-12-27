@@ -227,20 +227,21 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         setCurrentStaff(newStaff);
     };
 
+    // Memoize the value to prevent unnecessary re-renders
+    const value = {
+        businesses,
+        shops,
+        selectedBusiness,
+        selectedShop,
+        currentStaff,
+        isLoading,
+        setBusiness,
+        setShop,
+        refreshContext: loadContext,
+    };
+
     return (
-        <BusinessContext.Provider
-            value={{
-                businesses,
-                shops,
-                selectedBusiness,
-                selectedShop,
-                currentStaff,
-                isLoading,
-                setBusiness,
-                setShop,
-                refreshContext: loadContext,
-            }}
-        >
+        <BusinessContext.Provider value={value}>
             {children}
         </BusinessContext.Provider>
     );

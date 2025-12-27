@@ -12,6 +12,16 @@ import { useBusiness } from '@/hooks/use-business';
 import { uploadToR2 } from '@/lib/r2-upload';
 import { Camera, Image as ImageIcon, X } from 'lucide-react'; // Add icons
 import { toast } from 'sonner';
+import { z } from 'zod';
+
+// Validation Schema
+const productSchema = z.object({
+    name: z.string().min(1, 'Product name is required').max(200, 'Name must be 200 characters or less'),
+    price: z.number().min(0, 'Selling price must be 0 or greater'),
+    stock: z.number().min(0, 'Stock must be 0 or greater'),
+});
+
+type ProductErrors = Partial<Record<'name' | 'price' | 'stock', string>>;
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -45,6 +55,7 @@ export default function NewProductPage() {
     const [variantSize, setVariantSize] = useState('');
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [errors, setErrors] = useState<ProductErrors>({});
 
     const [globalCategories, setGlobalCategories] = useState<ProductCategory[]>([]);
     const [subCategories, setSubCategories] = useState<{ id: string, name: string }[]>([]);
@@ -98,6 +109,27 @@ export default function NewProductPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate form
+        const validation = productSchema.safeParse({
+            name: formData.name,
+            price: Number(formData.price) || 0,
+            stock: Number(formData.stock) || 0,
+        });
+
+        if (!validation.success) {
+            const newErrors: ProductErrors = {};
+            validation.error.issues.forEach((issue) => {
+                if (issue.path[0]) {
+                    newErrors[issue.path[0] as keyof ProductErrors] = issue.message;
+                }
+            });
+            setErrors(newErrors);
+            toast.error('Please fix the errors in the form');
+            return;
+        }
+
+        setErrors({});
         setLoading(true);
 
         try {
@@ -139,6 +171,7 @@ export default function NewProductPage() {
 
             if (error) throw error;
 
+            toast.success('Product created successfully!');
             router.push('/catalog');
             router.refresh();
         } catch (error: unknown) {
@@ -153,6 +186,10 @@ export default function NewProductPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error for this field
+        if (errors[name as keyof ProductErrors]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     return (
@@ -215,17 +252,21 @@ export default function NewProductPage() {
                     </div>
 
                     <div className="sm:col-span-2">
-                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Product Name *</label>
+                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Product Name <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2">
                             <input
                                 type="text"
                                 name="name"
                                 id="name"
-                                required
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 ${errors.name ? 'ring-red-500' : 'ring-gray-300 dark:ring-gray-700'}`}
                             />
+                            {errors.name && (
+                                <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                            )}
                         </div>
                     </div>
 
@@ -244,7 +285,9 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Selling Price *</label>
+                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Selling Price <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2 relative rounded-md shadow-sm">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                 <span className="text-gray-500 dark:text-gray-400 sm:text-sm">₹</span>
@@ -253,14 +296,16 @@ export default function NewProductPage() {
                                 type="number"
                                 name="price"
                                 id="price"
-                                required
                                 min="0"
                                 step="0.01"
                                 value={formData.price}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={`block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 ${errors.price ? 'ring-red-500' : 'ring-gray-300 dark:ring-gray-700'}`}
                             />
                         </div>
+                        {errors.price && (
+                            <p className="mt-1 text-xs text-red-500">{errors.price}</p>
+                        )}
                     </div>
 
                     <div>
@@ -283,19 +328,23 @@ export default function NewProductPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Current Stock *</label>
+                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Current Stock <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2">
                             <input
                                 type="number"
                                 name="stock"
                                 id="stock"
-                                required
                                 min="0"
                                 step="any"
                                 value={formData.stock}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 ${errors.stock ? 'ring-red-500' : 'ring-gray-300 dark:ring-gray-700'}`}
                             />
+                            {errors.stock && (
+                                <p className="mt-1 text-xs text-red-500">{errors.stock}</p>
+                            )}
                         </div>
                     </div>
 

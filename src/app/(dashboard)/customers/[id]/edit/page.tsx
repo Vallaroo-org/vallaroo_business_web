@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Customer } from '@/lib/types';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -21,10 +22,14 @@ const customerSchema = z.object({
 
 type CustomerErrors = Partial<Record<keyof z.infer<typeof customerSchema>, string>>;
 
-export default function NewCustomerPage() {
+export default function EditCustomerPage() {
     const router = useRouter();
+    const params = useParams();
+    const customerId = params?.id as string;
     const supabase = createClient();
+
     const [loading, setLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true);
     const [errors, setErrors] = useState<CustomerErrors>({});
 
     const [formData, setFormData] = useState({
@@ -33,6 +38,35 @@ export default function NewCustomerPage() {
         phone_number: '',
         address: '',
     });
+
+    useEffect(() => {
+        const fetchCustomer = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .eq('id', customerId)
+                    .single();
+
+                if (error) throw error;
+
+                setFormData({
+                    name: data.name || '',
+                    name_ml: data.name_ml || '',
+                    phone_number: data.phone_number || '',
+                    address: data.address || '',
+                });
+            } catch (error) {
+                console.error('Error fetching customer:', error);
+                toast.error('Customer not found');
+                router.push('/customers');
+            } finally {
+                setPageLoading(false);
+            }
+        };
+
+        if (customerId) fetchCustomer();
+    }, [customerId, router, supabase]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -55,69 +89,23 @@ export default function NewCustomerPage() {
         setLoading(true);
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
-            const { data: staffMember } = await supabase
-                .from('staff_members')
-                .select('business_id, shop_id')
-                .eq('user_id', user.id)
-                .limit(1)
-                .maybeSingle();
-
-            let finalBusinessId = staffMember?.business_id;
-            let finalShopId = '';
-
-            if (staffMember && staffMember.shop_id) {
-                finalShopId = staffMember.shop_id;
-            }
-
-            if (!finalBusinessId) {
-                const { data: business } = await supabase.from('businesses').select('id').eq('owner_id', user.id).single();
-                if (business) finalBusinessId = business.id;
-            }
-
-            if (finalBusinessId) {
-                const { data: shop } = await supabase.from('shops').select('id').eq('business_id', finalBusinessId).limit(1).single();
-                if (shop) finalShopId = shop.id;
-            }
-
-            if (!finalBusinessId || !finalShopId) {
-                toast.error("Could not determine Business or Shop context.");
-                setLoading(false);
-                return;
-            }
-
-            // Check if customer already exists
-            const { data: existingCustomer } = await supabase
+            const { error } = await supabase
                 .from('customers')
-                .select('id')
-                .eq('business_id', finalBusinessId)
-                .eq('phone_number', formData.phone_number)
-                .maybeSingle();
-
-            if (existingCustomer) {
-                toast.error("A customer with this phone number already exists.");
-                setLoading(false);
-                return;
-            }
-
-            const { error } = await supabase.from('customers').insert({
-                name: formData.name,
-                name_ml: formData.name_ml || null,
-                phone_number: formData.phone_number,
-                address: formData.address || null,
-                business_id: finalBusinessId,
-                default_shop_id: finalShopId,
-            });
+                .update({
+                    name: formData.name,
+                    name_ml: formData.name_ml || null,
+                    phone_number: formData.phone_number,
+                    address: formData.address || null,
+                })
+                .eq('id', customerId);
 
             if (error) throw error;
 
-            toast.success('Customer created successfully!');
+            toast.success('Customer updated successfully!');
             router.push('/customers');
             router.refresh();
         } catch (error: unknown) {
-            console.error('Error creating customer:', error);
+            console.error('Error updating customer:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
             toast.error(`Error: ${message}`);
         } finally {
@@ -134,13 +122,21 @@ export default function NewCustomerPage() {
         }
     };
 
+    if (pageLoading) {
+        return (
+            <div className="p-8 flex justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-0">
             <div className="flex items-center gap-3 sm:gap-4">
                 <Link href="/customers" className="p-2 hover:bg-muted rounded-full transition-colors">
                     <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                 </Link>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Add Customer</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Edit Customer</h1>
             </div>
 
             <Card className="border-border bg-card">
@@ -206,7 +202,7 @@ export default function NewCustomerPage() {
                             </Button>
                             <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                Save Customer
+                                Update Customer
                             </Button>
                         </div>
                     </form>

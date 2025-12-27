@@ -15,6 +15,20 @@ import { useRouter } from 'next/navigation';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { z } from 'zod';
+
+// Define validation schema
+const profileSchema = z.object({
+    display_name: z.string().min(2, 'Display name must be at least 2 characters').max(50, 'Display name must be less than 50 characters'),
+    phone_number: z.string().optional().refine((val) => !val || /^\+?[0-9]{10,15}$/.test(val), {
+        message: 'Invalid phone number format (e.g., +919876543210)',
+    }),
+    about: z.string().max(160, 'About must be less than 160 characters').optional(),
+    profile_image_url: z.string().optional(),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
+
 export default function AccountProfilePage() {
     const supabase = createClient();
     const router = useRouter();
@@ -22,9 +36,10 @@ export default function AccountProfilePage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormValues, string>>>({});
 
     // Form State
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<ProfileFormValues>({
         display_name: '',
         phone_number: '',
         about: '',
@@ -73,7 +88,13 @@ export default function AccountProfilePage() {
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Clear error on change
+        if (errors[name as keyof ProfileFormValues]) {
+            setErrors(prev => ({ ...prev, [name]: undefined }));
+        }
     };
 
     const handleAvatarUpload = (url: string) => {
@@ -83,6 +104,22 @@ export default function AccountProfilePage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
+        setErrors({});
+
+        // Validate
+        const result = profileSchema.safeParse(formData);
+        if (!result.success) {
+            const newErrors: Partial<Record<keyof ProfileFormValues, string>> = {};
+            result.error.issues.forEach(issue => {
+                const path = issue.path[0] as keyof ProfileFormValues;
+                newErrors[path] = issue.message;
+            });
+            setErrors(newErrors);
+            setSaving(false);
+            toast.error("Please fix the errors in the form.");
+            return;
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No user found');
@@ -93,7 +130,7 @@ export default function AccountProfilePage() {
                 display_name: formData.display_name,
                 phone_number: formData.phone_number,
                 about: formData.about,
-                profile_image_url: formData.profile_image_url,
+                profile_image_url: formData.profile_image_url || null,
                 updated_at: new Date().toISOString(),
             };
 
@@ -175,14 +212,17 @@ export default function AccountProfilePage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-foreground">Display Name</label>
+                            <label className="text-sm font-medium text-foreground">Display Name <span className="text-destructive">*</span></label>
                             <Input
                                 name="display_name"
                                 value={formData.display_name}
                                 onChange={handleChange}
                                 placeholder="Your Name"
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background text-foreground ${errors.display_name ? 'border-destructive focus-visible:ring-destructive' : 'border-input'}`}
                             />
+                            {errors.display_name && (
+                                <p className="text-xs text-destructive mt-1">{errors.display_name}</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -192,8 +232,11 @@ export default function AccountProfilePage() {
                                 value={formData.phone_number}
                                 onChange={handleChange}
                                 placeholder="+91 9876543210"
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background text-foreground ${errors.phone_number ? 'border-destructive focus-visible:ring-destructive' : 'border-input'}`}
                             />
+                            {errors.phone_number && (
+                                <p className="text-xs text-destructive mt-1">{errors.phone_number}</p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -203,8 +246,11 @@ export default function AccountProfilePage() {
                                 value={formData.about}
                                 onChange={handleChange}
                                 placeholder="Tell us about yourself"
-                                className="bg-background border-input text-foreground"
+                                className={`bg-background text-foreground ${errors.about ? 'border-destructive focus-visible:ring-destructive' : 'border-input'}`}
                             />
+                            {errors.about && (
+                                <p className="text-xs text-destructive mt-1">{errors.about}</p>
+                            )}
                         </div>
                     </CardContent>
                     <CardFooter className="bg-muted/30 border-t border-border flex justify-end p-4">

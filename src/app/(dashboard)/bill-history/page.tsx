@@ -227,40 +227,40 @@ export default function BillHistoryPage() {
                                         <tr>
                                             <th
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
                                                 onClick={() => handleSort('issued_at')}
                                             >
                                                 Date <SortIcon column="issued_at" />
                                             </th>
                                             <th
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none hidden sm:table-cell"
                                                 onClick={() => handleSort('bill_number')}
                                             >
                                                 Bill # <SortIcon column="bill_number" />
                                             </th>
                                             <th
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
                                                 onClick={() => handleSort('customer_name')}
                                             >
                                                 Customer <SortIcon column="customer_name" />
                                             </th>
                                             <th
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none hidden sm:table-cell"
                                                 onClick={() => handleSort('payment_status')}
                                             >
                                                 Status <SortIcon column="payment_status" />
                                             </th>
                                             <th
                                                 scope="col"
-                                                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
+                                                className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none"
                                                 onClick={() => handleSort('total')}
                                             >
                                                 Total <SortIcon column="total" />
                                             </th>
-                                            <th scope="col" className="relative px-6 py-3">
+                                            <th scope="col" className="relative px-3 sm:px-6 py-3">
                                                 <span className="sr-only">Actions</span>
                                             </th>
                                         </tr>
@@ -268,17 +268,25 @@ export default function BillHistoryPage() {
                                     <tbody className="bg-card divide-y divide-border">
                                         {filteredOrders.map((order) => (
                                             <tr key={order.id} className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => window.location.href = `/bill-history/${order.id}`}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                                                     {new Date(order.issued_at).toLocaleDateString()}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground hidden sm:table-cell">
                                                     {order.bill_number}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm text-foreground">{order.customer_name || 'Walking Customer'}</div>
                                                     {order.customer_phone && <div className="text-xs text-muted-foreground">{order.customer_phone}</div>}
+                                                    {/* Mobile: Show bill# and status inline */}
+                                                    <div className="sm:hidden text-xs text-muted-foreground">#{order.bill_number}</div>
+                                                    <span className={`sm:hidden mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize
+                                                        ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                                                            order.payment_status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                                                                'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'}`}>
+                                                        {order.payment_status || 'unpaid'}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
                                                         ${!order.payment_status || order.payment_status === 'unpaid' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
                                                             order.payment_status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
@@ -286,10 +294,10 @@ export default function BillHistoryPage() {
                                                         {order.payment_status || 'unpaid'}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                                                     {formatCurrency(order.total)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                                                     <BillActionsMenu
                                                         bill={order}
                                                         currentBusinessName={selectedShop?.name}

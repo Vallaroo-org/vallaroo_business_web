@@ -146,11 +146,11 @@ export default function NewOrdersPage() {
                                 <table className="min-w-full divide-y divide-border">
                                     <thead className="bg-muted/50">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
-                                            <th scope="col" className="relative px-6 py-3">
+                                            <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Time</th>
+                                            <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Customer</th>
+                                            <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider hidden sm:table-cell">Status</th>
+                                            <th scope="col" className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
+                                            <th scope="col" className="relative px-3 sm:px-6 py-3">
                                                 <span className="sr-only">Actions</span>
                                             </th>
                                         </tr>
@@ -158,14 +158,21 @@ export default function NewOrdersPage() {
                                     <tbody className="bg-card divide-y divide-border">
                                         {filteredOrders.map((order) => (
                                             <tr key={order.id} className="hover:bg-muted/50 transition-colors group cursor-pointer" onClick={() => window.location.href = `/orders/${order.id}`}>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                                                     {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                                     <div className="text-sm font-medium text-foreground">{order.customer_name}</div>
                                                     <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
+                                                    {/* Show status inline on mobile */}
+                                                    <span className={`sm:hidden mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
+                                                        ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800 animate-pulse' :
+                                                            order.status === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-green-100 text-green-800'}`}>
+                                                        {order.status.replace(/_/g, ' ')}
+                                                    </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
                                                         ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800 animate-pulse' :
                                                             order.status === 'out_for_delivery' ? 'bg-blue-100 text-blue-800' :
@@ -173,10 +180,10 @@ export default function NewOrdersPage() {
                                                         {order.status.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                                                     {formatCurrency(order.total_amount)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                     <Link href={`/orders/${order.id}`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 pointer-events-auto">
                                                         View
                                                     </Link>

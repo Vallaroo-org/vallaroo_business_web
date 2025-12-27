@@ -273,7 +273,9 @@ export default function EditProductPage() {
                         )}
                     </div>
                     <div className="sm:col-span-2">
-                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Product Name *</label>
+                        <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Product Name <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2">
                             <input
                                 type="text"
@@ -305,7 +307,9 @@ export default function EditProductPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Selling Price *</label>
+                        <label htmlFor="price" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Selling Price <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2 relative rounded-md shadow-sm">
                             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                                 <span className="text-gray-500 dark:text-gray-400 sm:text-sm">₹</span>
@@ -347,7 +351,9 @@ export default function EditProductPage() {
                     </div>
 
                     <div>
-                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Current Stock *</label>
+                        <label htmlFor="stock" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">
+                            Current Stock <span className="text-red-500">*</span>
+                        </label>
                         <div className="mt-2">
                             <input
                                 type="number"

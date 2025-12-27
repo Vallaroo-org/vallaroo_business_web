@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CreditCard, Store, Users, User, Bell, HelpCircle, Tags } from 'lucide-react';
+import { CreditCard, Store, Users, User, Bell, HelpCircle, Tags, Shield } from 'lucide-react';
 
 export default function SettingsPage() {
     const settingsLinks = [
@@ -35,6 +35,12 @@ export default function SettingsPage() {
             href: '/settings/account',
             description: 'Update your personal profile',
             icon: User
+        },
+        {
+            name: 'Roles & Permissions',
+            href: '/settings/roles',
+            description: 'Create custom roles and assign permissions',
+            icon: Shield
         },
         {
             name: 'Notifications',

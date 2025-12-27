@@ -197,7 +197,7 @@ export default function AccountProfilePage() {
                         {profile && (
                             <AvatarUpload
                                 uid={profile.id}
-                                url={formData.profile_image_url}
+                                url={formData.profile_image_url ?? null}
                                 onUpload={handleAvatarUpload}
                             />
                         )}

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, Store } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { QRCodeUpload } from './_components/qr-code-upload';
 
@@ -113,13 +114,13 @@ export default function ShopProfilePage() {
 
             if (data) {
                 setShop(data); // Update context
-                alert('Shop profile updated successfully!');
+                toast.success('Shop profile updated successfully!');
             }
 
         } catch (error: unknown) {
             console.error('Error updating shop:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to update shop: ${message}`);
+            toast.error(`Failed to update shop: ${message}`);
         } finally {
             setSaving(false);
         }

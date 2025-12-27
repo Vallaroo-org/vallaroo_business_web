@@ -83,8 +83,10 @@ export async function createShopAction(businessId: string, formData: FormData) {
     const name = formData.get('name') as string;
     const nameMl = formData.get('nameMl') as string;
 
-    const address = formData.get('address') as string;
-    const addressMl = formData.get('addressMl') as string;
+    const addressLine1 = formData.get('addressLine1') as string;
+    const addressLine1Ml = formData.get('addressLine1Ml') as string;
+    const addressLine2 = formData.get('addressLine2') as string;
+    const addressLine2Ml = formData.get('addressLine2Ml') as string;
 
     const city = formData.get('city') as string;
     const cityMl = formData.get('cityMl') as string;
@@ -96,8 +98,8 @@ export async function createShopAction(businessId: string, formData: FormData) {
     const deliveryAvailable = formData.get('deliveryAvailable') === 'on';
     const takeawayAvailable = formData.get('takeawayAvailable') === 'on';
 
-    if (!name || !city) {
-        return { error: 'Name and City are required' };
+    if (!name || !city || !addressLine1) {
+        return { error: 'Name, City and Address are required' };
     }
 
     // Check Limits
@@ -122,8 +124,10 @@ export async function createShopAction(businessId: string, formData: FormData) {
             business_id: businessId,
             name,
             name_ml: nameMl || null,
-            address_line_1: address || null,
-            address_line_1_ml: addressMl || null,
+            address_line1: addressLine1,
+            address_line1_ml: addressLine1Ml || null,
+            address_line2: addressLine2 || null, // Assuming this exists, if not it will fail next.
+            address_line2_ml: addressLine2Ml || null,
             city,
             city_ml: cityMl || null,
             category_id: categoryId || null, // Assuming column name

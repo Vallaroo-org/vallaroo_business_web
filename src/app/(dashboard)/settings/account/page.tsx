@@ -13,6 +13,7 @@ import DeleteConfirmDialog from '@/components/ui/delete-confirm-dialog';
 import AvatarUpload from '@/components/ui/avatar-upload';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AccountProfilePage() {
     const supabase = createClient();
@@ -102,13 +103,13 @@ export default function AccountProfilePage() {
 
             if (error) throw error;
 
-            alert('Profile updated successfully!');
+            toast.success('Profile updated successfully!');
             fetchProfile();
 
         } catch (error: unknown) {
             console.error('Error updating profile:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Failed to update profile: ${message}`);
+            toast.error(`Failed to update profile: ${message}`);
         } finally {
             setSaving(false);
         }
@@ -133,7 +134,7 @@ export default function AccountProfilePage() {
 
         } catch (error: unknown) {
             console.error("Error deleting account:", error);
-            alert("Failed to delete account. Please try again.");
+            toast.error("Failed to delete account. Please try again.");
             throw error; // Re-throw to keep dialog open or handle in dialog
         }
     };

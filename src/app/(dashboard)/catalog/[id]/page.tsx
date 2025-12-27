@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Product, ProductCategory } from '@/lib/types';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Camera, Image as ImageIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { GLOBAL_CATEGORIES_HIERARCHY } from '@/lib/constants';
+import { uploadToR2 } from '@/lib/r2-upload';
+import { toast } from 'sonner';
 
 export default function EditProductPage() {
     const router = useRouter();
@@ -17,6 +19,8 @@ export default function EditProductPage() {
 
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
+    const [uploading, setUploading] = useState(false);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [globalCategories, setGlobalCategories] = useState<ProductCategory[]>([]);
     const [subCategories, setSubCategories] = useState<{ id: string, name: string }[]>([]);
 
@@ -35,6 +39,23 @@ export default function EditProductPage() {
         sku: '',
         is_active: true,
     });
+
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const validateForm = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formData.name?.trim()) {
+            newErrors.name = 'Product Name is required';
+        }
+        if (formData.price === undefined || formData.price < 0) {
+            newErrors.price = 'Selling Price is required and cannot be negative';
+        }
+        if (formData.stock === undefined || formData.stock < 0) {
+            newErrors.stock = 'Current Stock is required and cannot be negative';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -78,11 +99,14 @@ export default function EditProductPage() {
                             sku: product.sku || '',
                             is_active: product.is_active ?? true,
                         });
+                        if (product.image_urls && product.image_urls.length > 0) {
+                            setImageUrl(product.image_urls[0]);
+                        }
                     }
                 }
             } catch (error) {
                 console.error('Error fetching product details:', error);
-                alert('Could not load product details.');
+                toast.error('Could not load product details.');
                 router.push('/catalog');
             } finally {
                 setFetching(false);
@@ -101,8 +125,30 @@ export default function EditProductPage() {
         setSubCategories(data || []);
     };
 
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const { publicUrl } = await uploadToR2(file, 'products');
+            setImageUrl(publicUrl);
+        } catch (error) {
+            console.error('Upload failed:', error);
+            toast.error('Failed to upload image');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!validateForm()) {
+            toast.error('Please fix the errors in the form');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -120,16 +166,18 @@ export default function EditProductPage() {
                 min_stock_alert: formData.min_stock_alert || 0,
                 sku: formData.sku || null,
                 is_active: formData.is_active,
+                image_urls: imageUrl ? [imageUrl] : null,
             }).eq('id', productId);
 
             if (error) throw error;
 
+            toast.success('Product updated successfully');
             router.push('/catalog');
             router.refresh();
         } catch (error: unknown) {
             console.error('Error updating product:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Error: ${message}`);
+            toast.error(`Error: ${message}`);
         } finally {
             setLoading(false);
         }
@@ -138,6 +186,10 @@ export default function EditProductPage() {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        // Clear error when user types
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }));
+        }
     };
 
     if (fetching) {
@@ -175,17 +227,66 @@ export default function EditProductPage() {
 
                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
+                        <label className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100 mb-2">Product Image</label>
+
+                        {imageUrl ? (
+                            <div className="relative w-full h-48 bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={imageUrl} alt="Product" className="w-full h-full object-contain" />
+                                <button
+                                    type="button"
+                                    onClick={() => setImageUrl(null)}
+                                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex justify-center rounded-lg border border-dashed border-gray-900/25 dark:border-gray-600 px-6 py-10 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                <div className="text-center">
+                                    {uploading ? (
+                                        <Loader2 className="mx-auto h-12 w-12 text-gray-300 animate-spin" />
+                                    ) : (
+                                        <ImageIcon className="mx-auto h-12 w-12 text-gray-300" aria-hidden="true" />
+                                    )}
+                                    <div className="mt-4 flex text-sm leading-6 text-gray-600 dark:text-gray-400 justify-center">
+                                        <label
+                                            htmlFor="file-upload"
+                                            className="relative cursor-pointer rounded-md bg-transparent font-semibold text-indigo-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-indigo-600 focus-within:ring-offset-2 hover:text-indigo-500"
+                                        >
+                                            <span>Upload a file</span>
+                                            <input
+                                                id="file-upload"
+                                                name="file-upload"
+                                                type="file"
+                                                className="sr-only"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                disabled={uploading}
+                                            />
+                                        </label>
+                                        <p className="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p className="text-xs leading-5 text-gray-600 dark:text-gray-400">PNG, JPG, GIF up to 5MB</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="sm:col-span-2">
                         <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-100">Product Name *</label>
                         <div className="mt-2">
                             <input
                                 type="text"
                                 name="name"
                                 id="name"
-                                required
                                 value={formData.name}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={cn(
+                                    "block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6",
+                                    errors.name && "ring-red-500 focus:ring-red-500"
+                                )}
                             />
+                            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
                         </div>
                     </div>
 
@@ -213,14 +314,17 @@ export default function EditProductPage() {
                                 type="number"
                                 name="price"
                                 id="price"
-                                required
                                 min="0"
                                 step="0.01"
                                 value={formData.price}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={cn(
+                                    "block w-full rounded-md border-0 py-1.5 pl-7 text-gray-900 dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6",
+                                    errors.price && "ring-red-500 focus:ring-red-500"
+                                )}
                             />
                         </div>
+                        {errors.price && <p className="mt-1 text-sm text-red-500">{errors.price}</p>}
                     </div>
 
                     <div>
@@ -249,13 +353,16 @@ export default function EditProductPage() {
                                 type="number"
                                 name="stock"
                                 id="stock"
-                                required
                                 min="0"
                                 step="any"
                                 value={formData.stock}
                                 onChange={handleChange}
-                                className="block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+                                className={cn(
+                                    "block w-full rounded-md border-0 py-1.5 text-gray-900 dark:text-white dark:bg-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6",
+                                    errors.stock && "ring-red-500 focus:ring-red-500"
+                                )}
                             />
+                            {errors.stock && <p className="mt-1 text-sm text-red-500">{errors.stock}</p>}
                         </div>
                     </div>
 

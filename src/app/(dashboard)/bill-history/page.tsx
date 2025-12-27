@@ -13,7 +13,8 @@ import {
     Trash2,
     Share2,
     MessageCircle,
-    Edit
+    Edit,
+    X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -193,11 +194,21 @@ export default function BillHistoryPage() {
                     <div className="relative max-w-sm">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
-                            className="pl-8 bg-background border-input text-foreground"
+                            className="pl-8 pr-8 bg-background border-input text-foreground"
                             placeholder="Search by Bill #, Customer Name or Phone..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            maxLength={50}
                         />
+                        {searchTerm && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
                     </div>
                 </div>
                 <CardContent className="p-0 bg-card">

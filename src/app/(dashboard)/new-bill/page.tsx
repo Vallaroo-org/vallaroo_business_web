@@ -270,6 +270,7 @@ function NewBillContent() {
     const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partial'>('unpaid');
     const [paidAmount, setPaidAmount] = useState<string>('');
     const [discount, setDiscount] = useState<number>(0);
+    const [partialError, setPartialError] = useState<string | null>(null);
 
     const subTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const totalPayable = Math.max(0, subTotal - discount);
@@ -287,16 +288,21 @@ function NewBillContent() {
     }, [paymentStatus, totalPayable]);
 
     const handleCheckout = async () => {
-        if (cart.length === 0) return alert('Cart is empty');
+        if (cart.length === 0) {
+            toast.error('Cart is empty');
+            return;
+        }
         if (!selectedShop) return;
 
         setSubmitting(true);
+        setPartialError(null);
+
         try {
             // Validate Partial Amount
             let finalPaidAmount = parseFloat(paidAmount);
             if (paymentStatus === 'partial') {
                 if (isNaN(finalPaidAmount) || finalPaidAmount < 0 || finalPaidAmount > totalPayable) {
-                    alert('Please enter a valid partial amount (less than total)');
+                    setPartialError('Please enter a valid partial amount (less than total)');
                     setSubmitting(false);
                     return;
                 }
@@ -405,7 +411,7 @@ function NewBillContent() {
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Checkout failed details:', JSON.stringify(error, null, 2));
-            alert(`Checkout failed: ${error.message || JSON.stringify(error)}`);
+            toast.error('Checkout failed. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -454,8 +460,8 @@ function NewBillContent() {
                             <button
                                 onClick={() => setActiveTab('products')}
                                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'products'
-                                        ? 'bg-background text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
                                     }`}
                             >
                                 Products
@@ -463,8 +469,8 @@ function NewBillContent() {
                             <button
                                 onClick={() => setActiveTab('services')}
                                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'services'
-                                        ? 'bg-background text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
                                     }`}
                             >
                                 Services
@@ -477,12 +483,22 @@ function NewBillContent() {
                             <Search className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
                         </div>
                         <Input
-                            className="pl-10 h-12 text-lg bg-card/50 backdrop-blur-sm border-border focus:ring-2 ring-primary/20 transition-all rounded-xl shadow-sm"
+                            className="pl-10 pr-10 h-12 text-lg bg-card/50 backdrop-blur-sm border-border focus:ring-2 ring-primary/20 transition-all rounded-xl shadow-sm"
                             placeholder={`Search ${activeTab}...`}
                             value={itemSearch}
                             onChange={(e) => setItemSearch(e.target.value)}
                             autoFocus
+                            maxLength={50}
                         />
+                        {itemSearch && (
+                            <button
+                                type="button"
+                                onClick={() => setItemSearch('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -730,10 +746,14 @@ function NewBillContent() {
                                     <Input
                                         type="number"
                                         value={paidAmount}
-                                        onChange={(e) => setPaidAmount(e.target.value)}
+                                        onChange={(e) => {
+                                            setPaidAmount(e.target.value);
+                                            if (partialError) setPartialError(null);
+                                        }}
                                         placeholder="Enter amount paid"
-                                        className="h-9"
+                                        className={`h-9 ${partialError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                     />
+                                    {partialError && <p className="text-xs text-red-500">{partialError}</p>}
                                 </div>
                             )}
                         </div>
@@ -772,7 +792,7 @@ function NewBillContent() {
                         size="lg"
                         className="rounded-full h-14 w-14 shadow-2xl shadow-primary/40 p-0 flex items-center justify-center relative"
                         onClick={() => {
-                            alert("Please use desktop for full feature set.");
+                            toast.info("Please use desktop for full feature set.");
                         }}
                     >
                         <ShoppingCaret className="w-6 h-6" />

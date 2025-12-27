@@ -10,6 +10,7 @@ import { useBusiness } from '@/components/providers/business-provider';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 // import { useLanguage } from '@/contexts/language-context';
+import { toast } from 'sonner';
 
 export default function InvoicePage() {
     const router = useRouter();
@@ -35,7 +36,7 @@ export default function InvoicePage() {
                 setOrder(data);
             } catch (error) {
                 console.error('Error fetching bill for invoice:', error);
-                alert('Invoice not found');
+                toast.error('Invoice not found');
                 router.push('/bill-history');
             } finally {
                 setLoading(false);
@@ -71,7 +72,7 @@ export default function InvoicePage() {
                 }
             }
         } else {
-            alert('Sharing is not supported on this browser/device.');
+            toast.error('Sharing is not supported on this browser/device.');
         }
     };
 

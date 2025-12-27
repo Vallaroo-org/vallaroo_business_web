@@ -11,6 +11,7 @@ import { GLOBAL_CATEGORIES_HIERARCHY } from '@/lib/constants';
 import { useBusiness } from '@/hooks/use-business';
 import { uploadToR2 } from '@/lib/r2-upload';
 import { Camera, Image as ImageIcon, X } from 'lucide-react'; // Add icons
+import { toast } from 'sonner';
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -89,7 +90,7 @@ export default function NewProductPage() {
             setImageUrl(publicUrl);
         } catch (error) {
             console.error('Upload failed:', error);
-            alert('Failed to upload image');
+            toast.error('Failed to upload image');
         } finally {
             setUploading(false);
         }
@@ -101,7 +102,7 @@ export default function NewProductPage() {
 
         try {
             if (!selectedBusiness || !selectedShop) {
-                alert("Context missing. Please select a business and shop.");
+                toast.error("Context missing. Please select a business and shop.");
                 return;
             }
 
@@ -143,7 +144,7 @@ export default function NewProductPage() {
         } catch (error: unknown) {
             console.error('Error creating product:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Error: ${message}`);
+            toast.error(`Error: ${message}`);
         } finally {
             setLoading(false);
         }

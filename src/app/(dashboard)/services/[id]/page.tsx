@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ServiceCategory, Service } from '@/lib/types';
 import { ArrowLeft, Loader2, Upload, X, Image as ImageIcon, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useBusiness } from '@/components/providers/business-provider';
 import { uploadToR2 } from '@/lib/r2-upload';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ export default function EditServicePage({ params }: { params: { id: string } }) 
             setImageUrl(publicUrl);
         } catch (error) {
             console.error('Upload failed:', error);
-            alert('Failed to upload image');
+            toast.error('Failed to upload image');
         } finally {
             setUploading(false);
         }
@@ -139,7 +140,7 @@ export default function EditServicePage({ params }: { params: { id: string } }) 
             router.refresh();
         } catch (error) {
             console.error('Error updating service:', error);
-            alert('Failed to update service. Please try again.');
+            toast.error('Failed to update service. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -160,7 +161,7 @@ export default function EditServicePage({ params }: { params: { id: string } }) 
             router.refresh();
         } catch (error) {
             console.error('Error deleting service:', error);
-            alert('Failed to delete service.');
+            toast.error('Failed to delete service.');
         } finally {
             setLoading(false);
         }

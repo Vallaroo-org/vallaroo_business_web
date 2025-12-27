@@ -34,20 +34,34 @@ export default function CreateBusinessPage() {
         ownerPhone: ''
     });
 
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
     const updateField = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: '' }));
+        }
     };
 
     const handleNext = () => {
+        const newErrors: Record<string, string> = {};
+
         if (step === Step.BUSINESS) {
-            if (!formData.name || !formData.city) {
-                alert('Business Name and City are required');
+            if (!formData.name) newErrors.name = 'Business Name is required';
+            if (!formData.city) newErrors.city = 'City is required';
+
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
                 return;
             }
             setStep(Step.OWNER);
         } else if (step === Step.OWNER) {
-            if (!formData.ownerName || !formData.ownerPhone) {
-                alert('Owner Name and Phone are required');
+            if (!formData.ownerName) newErrors.ownerName = 'Owner Name is required';
+            if (!formData.ownerPhone) newErrors.ownerPhone = 'Phone Number is required';
+
+            if (Object.keys(newErrors).length > 0) {
+                setErrors(newErrors);
                 return;
             }
             setStep(Step.REVIEW);
@@ -60,21 +74,36 @@ export default function CreateBusinessPage() {
 
     const handleSubmit = async () => {
         setLoading(true);
+        setSubmitError(null);
 
         // Validation
+        const newErrors: Record<string, string> = {};
+
         if (formData.website) {
             const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
             if (!urlPattern.test(formData.website)) {
-                alert('Please enter a valid website URL.');
-                setLoading(false);
-                return;
+                newErrors.website = 'Please enter a valid website URL.';
             }
         }
 
         const phonePattern = /^(?:\+91|91|0)?[6-9]\d{9}$/;
-        if (!phonePattern.test(formData.ownerPhone)) {
-            alert('Please enter a valid 10-digit mobile number.');
+        if (formData.ownerPhone && !phonePattern.test(formData.ownerPhone)) {
+            // Only validate if phone is provided? Wait, phone is required in earlier step.
+            // If field is empty, regex might fail or pass depending on implementation.
+            // Step 2 validation ensures it's not empty. 
+            // Logic in handleNext checks !formData.ownerPhone.
+            // So here we assume it is present or we check regex.
+            newErrors.ownerPhone = 'Please enter a valid 10-digit mobile number.';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             setLoading(false);
+            if (newErrors.ownerPhone) {
+                setStep(Step.OWNER);
+            } else if (newErrors.website) {
+                setStep(Step.BUSINESS);
+            }
             return;
         }
 
@@ -87,7 +116,7 @@ export default function CreateBusinessPage() {
             const result = await createBusinessAction(data);
 
             if (result.error) {
-                alert(result.error);
+                setSubmitError(result.error);
                 return;
             }
 
@@ -97,7 +126,7 @@ export default function CreateBusinessPage() {
 
         } catch (error) {
             console.error('Error creating business:', error);
-            alert('Failed to create business. Please try again.');
+            setSubmitError('Failed to create business. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -150,10 +179,12 @@ export default function CreateBusinessPage() {
                                     Business Name {isMalayalam && '(Malayalam)'} <span className="text-red-500">*</span>
                                 </label>
                                 <Input
+                                    className={`${errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                     value={isMalayalam ? formData.nameMl : formData.name}
                                     onChange={(e) => updateField(isMalayalam ? 'nameMl' : 'name', e.target.value)}
                                     placeholder={isMalayalam ? "വല്ലാറൂ" : "e.g. Vallaroo Inc"}
                                 />
+                                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                             </div>
 
                             <div>
@@ -180,6 +211,7 @@ export default function CreateBusinessPage() {
                                         placeholder="https://vallaroo.com"
                                     />
                                 </div>
+                                {errors.website && <p className="text-red-500 text-xs mt-1">{errors.website}</p>}
                             </div>
 
                             <div>
@@ -189,12 +221,13 @@ export default function CreateBusinessPage() {
                                 <div className="relative">
                                     <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        className="pl-9"
+                                        className={`pl-9 ${errors.city ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                         value={formData.city}
                                         onChange={(e) => updateField('city', e.target.value)}
                                         placeholder="e.g. Kochi"
                                     />
                                 </div>
+                                {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                             </div>
                         </div>
                     </div>
@@ -215,10 +248,12 @@ export default function CreateBusinessPage() {
                                     Owner Name <span className="text-red-500">*</span>
                                 </label>
                                 <Input
+                                    className={`${errors.ownerName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                     value={formData.ownerName}
                                     onChange={(e) => updateField('ownerName', e.target.value)}
                                     placeholder="Your Full Name"
                                 />
+                                {errors.ownerName && <p className="text-red-500 text-xs mt-1">{errors.ownerName}</p>}
                             </div>
 
                             <div>
@@ -228,13 +263,14 @@ export default function CreateBusinessPage() {
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                        className="pl-9"
+                                        className={`pl-9 ${errors.ownerPhone ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                         type="tel"
                                         value={formData.ownerPhone}
                                         onChange={(e) => updateField('ownerPhone', e.target.value)}
                                         placeholder="+91 98765 43210"
                                     />
                                 </div>
+                                {errors.ownerPhone && <p className="text-red-500 text-xs mt-1">{errors.ownerPhone}</p>}
                             </div>
                         </div>
                     </div>
@@ -276,25 +312,32 @@ export default function CreateBusinessPage() {
                     </div>
                 )}
 
-                <div className="mt-8 flex justify-between pt-4 border-t border-border">
-                    <Button
-                        variant="ghost"
-                        onClick={handleBack}
-                        disabled={step === Step.BUSINESS || loading}
-                    >
-                        Back
-                    </Button>
-
-                    {step === Step.REVIEW ? (
-                        <Button onClick={handleSubmit} disabled={loading} className="px-8">
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Business
-                        </Button>
-                    ) : (
-                        <Button onClick={handleNext} className="px-8">
-                            Next
-                        </Button>
+                <div className="mt-8 pt-4 border-t border-border">
+                    {submitError && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm mb-4">
+                            {submitError}
+                        </div>
                     )}
+                    <div className="flex justify-between">
+                        <Button
+                            variant="ghost"
+                            onClick={handleBack}
+                            disabled={step === Step.BUSINESS || loading}
+                        >
+                            Back
+                        </Button>
+
+                        {step === Step.REVIEW ? (
+                            <Button onClick={handleSubmit} disabled={loading} className="px-8">
+                                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Create Business
+                            </Button>
+                        ) : (
+                            <Button onClick={handleNext} className="px-8">
+                                Next
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </Card>
         </div>

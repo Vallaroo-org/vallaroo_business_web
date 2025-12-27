@@ -33,7 +33,7 @@ export function QRCodeUpload({ shopId, url, onUpload }: QRCodeUploadProps) {
             toast.success("QR Code uploaded successfully");
 
         } catch (error: any) {
-            toast.error('Error uploading QR Code: ' + error.message);
+            toast.error('Error uploading QR Code. Please try again.');
             console.error(error);
         } finally {
             setUploading(false);

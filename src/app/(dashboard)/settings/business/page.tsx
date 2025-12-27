@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, Building2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function BusinessProfilePage() {
     const supabase = createClient();
@@ -61,12 +62,12 @@ export default function BusinessProfilePage() {
 
             if (error) throw error;
 
-            alert('Business profile updated successfully! Changes will reflect after reload.');
+            toast.success('Business profile updated successfully!');
             // Ideally we'd update context here, but reload effectively does it
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Error updating business:', error);
-            alert(`Failed to update business: ${error.message}`);
+            toast.error('Failed to update business. Please try again.');
         } finally {
             setSaving(false);
         }

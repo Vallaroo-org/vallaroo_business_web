@@ -321,7 +321,7 @@ export function GenerateBillDialog({ order, open, onOpenChange }: GenerateBillDi
 
         } catch (error: any) {
             console.error(error);
-            toast.error("Failed to generate bill: " + error.message);
+            toast.error("Failed to generate bill. Please try again.");
         } finally {
             setLoading(false);
         }

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Customer } from '@/lib/types';
 import { ArrowLeft, Loader2, Phone, MapPin, ReceiptText } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 // import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -31,7 +32,7 @@ export default function CustomerDetailsPage() {
                 setCustomer(data);
             } catch (error) {
                 console.error('Error fetching customer:', error);
-                alert('Customer not found');
+                toast.error('Customer not found');
                 router.push('/customers');
             } finally {
                 setLoading(false);

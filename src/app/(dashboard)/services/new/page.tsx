@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { ServiceCategory } from '@/lib/types';
 import { ArrowLeft, Loader2, Upload, X, Image as ImageIcon, Camera } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { useBusiness } from '@/components/providers/business-provider';
 import { uploadToR2 } from '@/lib/r2-upload';
 import { Button } from '@/components/ui/button';
@@ -52,7 +53,7 @@ export default function NewServicePage() {
             setImageUrl(publicUrl);
         } catch (error) {
             console.error('Upload failed:', error);
-            alert('Failed to upload image');
+            toast.error('Failed to upload image');
         } finally {
             setUploading(false);
         }
@@ -95,7 +96,7 @@ export default function NewServicePage() {
             router.refresh();
         } catch (error) {
             console.error('Error creating service:', error);
-            alert('Failed to create service. Please try again.');
+            toast.error('Failed to create service. Please try again.');
         } finally {
             setLoading(false);
         }

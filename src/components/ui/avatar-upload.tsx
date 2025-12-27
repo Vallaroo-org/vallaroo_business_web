@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Upload, User } from 'lucide-react';
 import Image from 'next/image';
 import { uploadToR2 } from '@/lib/r2-upload';
+import { toast } from 'sonner';
 
 interface AvatarUploadProps {
     uid: string;
@@ -35,7 +36,7 @@ export default function AvatarUpload({ uid, url, onUpload, size = 150 }: AvatarU
             onUpload(publicUrl);
 
         } catch (error: unknown) {
-            alert('Error uploading avatar!');
+            toast.error('Error uploading avatar!');
             console.error(error);
         } finally {
             setUploading(false);

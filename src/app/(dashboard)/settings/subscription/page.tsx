@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, Check } from 'lucide-react';
 import Script from 'next/script';
+import { toast } from 'sonner';
 
 export default function SubscriptionPage() {
     const [plans, setPlans] = useState<any[]>([]);
@@ -75,7 +76,7 @@ export default function SubscriptionPage() {
             const data = await response.json();
 
             if (data.error) {
-                alert(data.error);
+                toast.error(data.error);
                 setProcessingPlan(null);
                 return;
             }
@@ -100,14 +101,14 @@ export default function SubscriptionPage() {
                         const verifyData = await verifyResponse.json();
 
                         if (verifyData.success) {
-                            alert('Subscription Successful!');
+                            toast.success('Subscription Successful!');
                             await fetchSubscriptionAndPlans(); // Refresh state
                         } else {
-                            alert('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
+                            toast.error('Payment verification failed: ' + (verifyData.error || 'Unknown error'));
                         }
                     } catch (err) {
                         console.error('Verification call failed', err);
-                        alert('Payment verification failed. Please contact support.');
+                        toast.error('Payment verification failed. Please contact support.');
                     } finally {
                         setProcessingPlan(null);
                     }
@@ -127,7 +128,7 @@ export default function SubscriptionPage() {
 
         } catch (error) {
             console.error('Payment Error:', error);
-            alert('Something went wrong. Please try again.');
+            toast.error('Something went wrong. Please try again.');
             setProcessingPlan(null);
         }
     };

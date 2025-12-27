@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Service } from '@/lib/types';
 import Link from 'next/link';
-import { Plus, Search, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useBusiness } from '@/components/providers/business-provider';
@@ -87,10 +87,20 @@ export default function ServicesPage() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search services..."
-                        className="pl-9"
+                        className="pl-9 pr-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        maxLength={50}
                     />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 

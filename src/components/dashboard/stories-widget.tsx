@@ -7,6 +7,7 @@ import { Loader2, Plus, Trash2, Image as ImageIcon, Eye } from 'lucide-react';
 import { useLanguage } from '@/contexts/language-context';
 import dynamic from 'next/dynamic';
 import { uploadToR2 } from '@/lib/r2-upload';
+import { toast } from 'sonner';
 
 const StoryEditorModal = dynamic(
     () => import('./story-editor-modal').then((mod) => mod.StoryEditorModal),
@@ -120,7 +121,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
             await fetchStories();
         } catch (error) {
             console.error('Error uploading story:', error);
-            alert('Failed to upload story');
+            toast.error('Failed to upload story');
         } finally {
             setUploading(false);
             setEditingImageUrl(null);
@@ -160,7 +161,7 @@ export function StoriesWidget({ shopId, subscriptionPlan }: StoriesWidgetProps) 
             }
         } catch (error) {
             console.error('Error deleting story:', error);
-            alert('Failed to delete story');
+            toast.error('Failed to delete story');
             throw error; // Re-throw to let modal know
         }
     };

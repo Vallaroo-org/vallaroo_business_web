@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Product, ProductCategory } from '@/lib/types';
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import { Card, CardContent } from '@/components/ui/card'; // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -88,11 +88,21 @@ export default function CatalogPage() {
                     </div>
                     <input
                         type="text"
-                        className="block w-full rounded-md border-0 py-1.5 pl-10 text-foreground bg-background ring-1 ring-inset ring-input placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                        className="block w-full rounded-md border-0 py-1.5 pl-10 pr-8 text-foreground bg-background ring-1 ring-inset ring-input placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
                         placeholder="Search products by name or SKU..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
+                        maxLength={50}
                     />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchTerm('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
                 </div>
                 <div className="sm:w-64">
                     <select

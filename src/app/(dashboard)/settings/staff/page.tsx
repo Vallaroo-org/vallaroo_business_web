@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, UserPlus, Mail, Shield, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function StaffPage() {
     const { selectedBusiness, selectedShop, isLoading: contextLoading } = useBusiness();
@@ -73,7 +74,7 @@ export default function StaffPage() {
             // Check for specific error status from function if needed
             // Assuming 200 OK means success
 
-            alert('Invitation sent successfully!');
+            toast.success('Invitation sent successfully!');
             setInviteEmail('');
             setInviteName('');
             setInviteRole('staff');
@@ -81,7 +82,7 @@ export default function StaffPage() {
 
         } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             console.error('Error inviting staff:', error);
-            alert(`Failed to invite staff: ${error.message || 'Unknown error'}`);
+            toast.error('Failed to invite staff. Please try again.');
         } finally {
             setInviteLoading(false);
         }
@@ -100,7 +101,7 @@ export default function StaffPage() {
             fetchStaff();
         } catch (error) {
             console.error('Error removing staff:', error);
-            alert('Failed to remove staff member.');
+            toast.error('Failed to remove staff member.');
         }
     };
 
@@ -123,10 +124,10 @@ export default function StaffPage() {
 
             setStaff(prev => prev.map(s => s.id === editingStaff.id ? { ...s, role: editRole } : s));
             setEditingStaff(null);
-            alert('Role updated successfully!');
+            toast.success('Role updated successfully!');
         } catch (error: any) {
             console.error('Error updating role:', error);
-            alert(`Failed to update role: ${error.message || 'Unknown error'}`);
+            toast.error('Failed to update role. Please try again.');
         } finally {
             setUpdateLoading(false);
         }

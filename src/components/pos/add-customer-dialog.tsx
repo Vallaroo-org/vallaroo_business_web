@@ -31,6 +31,8 @@ export default function AddCustomerDialog({
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -41,7 +43,17 @@ export default function AddCustomerDialog({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !phone) return;
+        setSubmitError(null);
+
+        const newErrors: Record<string, string> = {};
+        if (!name.trim()) newErrors.name = 'Name is required';
+        if (!phone.trim()) newErrors.phone = 'Phone Number is required';
+        else if (!/^[0-9]{10}$/.test(phone.replace(/\D/g, ''))) newErrors.phone = 'Invalid phone number';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
 
         setLoading(true);
         const supabase = createClient();
@@ -67,9 +79,10 @@ export default function AddCustomerDialog({
             setName('');
             setPhone('');
             setAddress('');
+            setErrors({});
         } catch (error) {
             console.error('Error creating customer:', error);
-            alert('Failed to create customer');
+            setSubmitError('Failed to create customer');
         } finally {
             setLoading(false);
         }
@@ -96,11 +109,14 @@ export default function AddCustomerDialog({
                             <Input
                                 placeholder="Customer Name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                className="pl-9"
-                                required
+                                onChange={(e) => {
+                                    setName(e.target.value);
+                                    if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                                }}
+                                className={`pl-9 ${errors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                             />
                         </div>
+                        {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -110,12 +126,15 @@ export default function AddCustomerDialog({
                             <Input
                                 placeholder="Phone Number"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                className="pl-9"
+                                onChange={(e) => {
+                                    setPhone(e.target.value);
+                                    if (errors.phone) setErrors(prev => ({ ...prev, phone: '' }));
+                                }}
+                                className={`pl-9 ${errors.phone ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                                 type="tel"
-                                required
                             />
                         </div>
+                        {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -130,6 +149,12 @@ export default function AddCustomerDialog({
                             />
                         </div>
                     </div>
+
+                    {submitError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-xs">
+                            {submitError}
+                        </div>
+                    )}
 
                     <div className="pt-4 flex gap-3 justify-end">
                         <Button type="button" variant="outline" onClick={onClose} disabled={loading}>

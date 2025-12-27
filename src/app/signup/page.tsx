@@ -1,6 +1,7 @@
 import { signup, signInWithGoogle } from '../login/actions'
-import { Store, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Store, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { parseError } from '@/lib/utils'
+import { SignupForm } from './signup-form'
 
 export default async function SignupPage({
     searchParams,
@@ -32,61 +33,7 @@ export default async function SignupPage({
                     </div>
 
                     <div className="space-y-6">
-                        <form className="space-y-5">
-                            <input type="hidden" name="next" value={next} />
-
-                            <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Email <span className="text-red-600">*</span>
-                                </label>
-                                <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    required
-                                    className="block w-full rounded-md border-0 py-3.5 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6 bg-white !bg-white [&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827] transition-all duration-200 ease-in-out"
-                                    placeholder="name@company.com"
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                    Password <span className="text-red-600">*</span>
-                                </label>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    autoComplete="new-password"
-                                    required
-                                    minLength={8}
-                                    className="block w-full rounded-md border-0 py-3.5 pl-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6 bg-white !bg-white [&:-webkit-autofill]:shadow-[0_0_0_1000px_white_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:#111827] transition-all duration-200 ease-in-out"
-                                    placeholder="••••••••"
-                                />
-                            </div>
-
-                            {params.error && (
-                                <div className="rounded-lg bg-red-50 p-3 flex items-start gap-3">
-                                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                                    <p className="text-sm text-red-700">{parseError(params.error)}</p>
-                                </div>
-                            )}
-
-                            {params.message && (
-                                <div className="rounded-lg bg-green-50 p-3 flex items-start gap-3">
-                                    <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                                    <p className="text-sm text-green-700">{params.message}</p>
-                                </div>
-                            )}
-
-                            <button
-                                formAction={signup}
-                                className="flex w-full justify-center items-center rounded-lg bg-emerald-900 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition-all duration-200"
-                            >
-                                Create Account
-                            </button>
-                        </form>
+                        <SignupForm params={params as any} />
 
                         <div className="relative">
                             <div className="absolute inset-0 flex items-center" aria-hidden="true">

@@ -46,7 +46,7 @@ export default function CompleteProfilePage() {
             router.push('/');
             router.refresh();
         } catch (error: any) {
-            toast.error(error.message || "Something went wrong.");
+            toast.error("Something went wrong. Please try again.");
         } finally {
             setIsLoading(false);
         }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,7 +52,7 @@ export default function NewCustomerPage() {
             }
 
             if (!finalBusinessId || !finalShopId) {
-                alert("Could not determine Business or Shop context.");
+                toast.error("Could not determine Business or Shop context.");
                 setLoading(false);
                 return;
             }
@@ -74,7 +75,7 @@ export default function NewCustomerPage() {
         } catch (error: unknown) {
             console.error('Error creating customer:', error);
             const message = error instanceof Error ? error.message : 'Unknown error';
-            alert(`Error: ${message}`);
+            toast.error(`Error: ${message}`);
         } finally {
             setLoading(false);
         }

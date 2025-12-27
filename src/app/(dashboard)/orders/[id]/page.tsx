@@ -87,7 +87,7 @@ export default function OrderDetailsPage() {
             toast.success(`Order status updated to ${newStatus}`);
         } catch (error: any) {
             console.error('Caught Error updating status:', error);
-            toast.error(`Failed to update status: ${error.message || 'Unknown error'}`);
+            toast.error('Failed to update status. Please try again.');
         } finally {
             setUpdating(false);
         }
